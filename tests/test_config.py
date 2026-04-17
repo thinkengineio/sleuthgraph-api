@@ -1,7 +1,5 @@
 """Tests for src/sleuthgraph/config.py."""
 
-import os
-
 from sleuthgraph.config import Settings
 
 

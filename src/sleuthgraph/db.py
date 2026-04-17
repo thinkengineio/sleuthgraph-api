@@ -13,7 +13,12 @@ Usage in endpoints:
 from collections.abc import AsyncIterator
 from functools import cache
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 from sleuthgraph.config import get_settings

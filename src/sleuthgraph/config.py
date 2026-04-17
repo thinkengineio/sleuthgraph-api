@@ -7,8 +7,8 @@ as validation errors at startup, not as surprise failures later.
 import json
 from typing import Any
 
-from pydantic.fields import FieldInfo
 from pydantic import Field
+from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 from pydantic_settings.main import BaseSettings as _BS
 
@@ -50,7 +50,9 @@ class Settings(BaseSettings):
     s3_region: str = Field("us-east-1")
 
     # Crypto
-    secret_key: str = Field(..., min_length=32, description="Used for JWT signing + credential encryption")
+    secret_key: str = Field(
+        ..., min_length=32, description="Used for JWT signing + credential encryption"
+    )
 
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])

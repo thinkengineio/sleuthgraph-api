@@ -7,10 +7,10 @@ environments don't require an alembic.ini edit.
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from alembic import context
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import Base
 
