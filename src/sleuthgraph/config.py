@@ -54,6 +54,19 @@ class Settings(BaseSettings):
         ..., min_length=32, description="Used for JWT signing + credential encryption"
     )
 
+    # Auth
+    auth_cookie_name: str = "sleuthgraph_session"
+    auth_cookie_secure: bool = True
+    auth_session_lifetime_seconds: int = 60 * 60 * 24 * 7
+    auth_allow_signup: bool = False
+    auth_admin_email: str | None = None
+    auth_admin_password: str | None = None
+
+    # OIDC (optional)
+    oidc_issuer: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
