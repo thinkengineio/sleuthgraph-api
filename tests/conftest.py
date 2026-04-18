@@ -1,5 +1,7 @@
 """Shared pytest fixtures."""
 
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -29,8 +31,13 @@ async def test_engine():
         poolclass=StaticPool,
     )
     async with engine.begin() as conn:
-        # Ensure auth models are imported so their tables register on metadata
+        # Ensure all models are imported so their tables register on metadata
+        # before create_all runs. Order matters: auth → cases → entities →
+        # relationships (FK chain).
         from sleuthgraph.auth import models as _auth_models  # noqa: F401
+        from sleuthgraph.cases import models as _cases_models  # noqa: F401
+        from sleuthgraph.entities import models as _ent_models  # noqa: F401
+        from sleuthgraph.relationships import models as _rel_models  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
@@ -115,3 +122,38 @@ def enable_signup(monkeypatch):
     Use together with ``fresh_app`` — this fixture only flips the env.
     """
     monkeypatch.setenv("AUTH_ALLOW_SIGNUP", "true")
+
+
+@pytest.fixture
+async def postgres_age_session():
+    """Postgres session for AGE-requiring tests. Skips if no live db.
+
+    Looks for SLEUTHGRAPH_TEST_POSTGRES_URL first, then falls back to the
+    deploy-compose URL for convenience.
+    """
+    url = os.environ.get(
+        "SLEUTHGRAPH_TEST_POSTGRES_URL",
+        "postgresql+asyncpg://sleuthgraph:changeme_local_only@localhost:5432/sleuthgraph",
+    )
+    engine = create_async_engine(url)
+    # Ensure connection works; skip otherwise
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+    except Exception as e:
+        await engine.dispose()
+        pytest.skip(f"Postgres+AGE not available at {url}: {e}")
+
+    # Ensure migrations applied — if not, skip (don't run alembic here)
+    async with engine.connect() as conn:
+        from sqlalchemy import text as _t
+        try:
+            await conn.execute(_t("SELECT 1 FROM entities LIMIT 1"))
+        except Exception as e:
+            await engine.dispose()
+            pytest.skip(f"entities table missing — run 'alembic upgrade head': {e}")
+
+    TestSession = async_sessionmaker(engine, expire_on_commit=False)
+    async with TestSession() as session:
+        yield session
+    await engine.dispose()
