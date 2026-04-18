@@ -17,6 +17,7 @@ from sleuthgraph.auth.ping import router as auth_ping_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.entities.router import router as entities_router
+from sleuthgraph.relationships.router import router as relationships_router
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_engine
 from sleuthgraph.routers import health
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
 
     app.include_router(cases_router)
     app.include_router(entities_router)
+    app.include_router(relationships_router)
 
     return app
 
