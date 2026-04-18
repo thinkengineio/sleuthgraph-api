@@ -23,6 +23,28 @@ from sleuthgraph.routers import health
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     engine = get_engine()
+
+    # Defense in depth: verify the import-time cookie transport snapshot
+    # matches current settings. Divergence means env loaded late or a test
+    # mutated the singleton.
+    from sleuthgraph.auth.backend import cookie_transport
+    settings = get_settings()
+    if cookie_transport.cookie_secure != settings.auth_cookie_secure:
+        raise RuntimeError(
+            f"Cookie transport / settings drift: transport.cookie_secure="
+            f"{cookie_transport.cookie_secure} but settings.auth_cookie_secure="
+            f"{settings.auth_cookie_secure}. This usually means the env was "
+            "loaded after sleuthgraph.auth.backend was imported, or a test "
+            "fixture failed to restore state."
+        )
+
+    # Production guard: refuse to run plaintext cookies in non-debug mode.
+    if not settings.debug and not settings.auth_cookie_secure:
+        raise RuntimeError(
+            "Refusing to start: AUTH_COOKIE_SECURE=false in non-debug mode. "
+            "Set AUTH_COOKIE_SECURE=true behind HTTPS."
+        )
+
     from sleuthgraph.auth.bootstrap import bootstrap_admin
     await bootstrap_admin()
     yield
