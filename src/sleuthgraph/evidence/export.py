@@ -14,6 +14,7 @@ from sleuthgraph.auth.deps import current_active_user
 from sleuthgraph.auth.models import User
 from sleuthgraph.cases.repository import CaseRepository
 from sleuthgraph.db import get_session
+from sleuthgraph.evidence.deps import get_storage
 from sleuthgraph.evidence.repository import EvidenceRepository
 from sleuthgraph.evidence.schemas import EvidenceRead
 from sleuthgraph.evidence.storage import EvidenceStorage
@@ -28,17 +29,13 @@ CSV_COLUMNS = [
 ]
 
 
-def _get_storage() -> EvidenceStorage:
-    return EvidenceStorage()
-
-
 @router.get("/export")
 async def export_evidence_ledger(
     case_id: uuid.UUID,
     format: str = Query(default="json", pattern="^(json|csv)$"),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_session),
-    storage: EvidenceStorage = Depends(_get_storage),
+    storage: EvidenceStorage = Depends(get_storage),
 ):
     # Ownership check
     case_repo = CaseRepository(session)
