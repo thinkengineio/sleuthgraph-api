@@ -213,3 +213,39 @@ async def test_invalid_metadata_returns_422(signup_client_with_fake_storage):
         data={"metadata": json.dumps({"source_plugin": "manual"})},  # no query
     )
     assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_upload_larger_than_max_returns_413(signup_client_with_fake_storage, monkeypatch):
+    """Payloads over the configured cap are rejected with 413 before the body is buffered."""
+    monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
+    signup_client, _ = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "big@example.com")
+    case_id = await _create_case(signup_client)
+
+    oversized = b"x" * 200  # 2x the limit
+
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("big.bin", io.BytesIO(oversized), "application/octet-stream")},
+        data={"metadata": json.dumps({"query": "big"})},
+    )
+    assert r.status_code == 413, r.text
+
+
+@pytest.mark.asyncio
+async def test_upload_at_limit_succeeds(signup_client_with_fake_storage, monkeypatch):
+    """Payload exactly at the cap is accepted."""
+    monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
+    signup_client, _ = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "exact@example.com")
+    case_id = await _create_case(signup_client)
+
+    exactly_at_limit = b"x" * 100
+
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("ok.bin", io.BytesIO(exactly_at_limit), "application/octet-stream")},
+        data={"metadata": json.dumps({"query": "ok"})},
+    )
+    assert r.status_code == 201
