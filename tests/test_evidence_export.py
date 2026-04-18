@@ -174,3 +174,28 @@ async def test_export_case_ownership_isolation(signup_with_storage):
 
     r = await signup_client.get(f"/cases/{case_id}/evidence/export")
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_csv_export_neutralizes_formula_injection(signup_with_storage):
+    """A query starting with = gets a leading ' so Excel won't eval it."""
+    signup_client, _ = signup_with_storage
+    await _login(signup_client, "csvi@example.com")
+    case_id = await _create_case(signup_client)
+
+    # Seed via the upload route
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("a.bin", io.BytesIO(b"a"), "application/octet-stream")},
+        data={"metadata": json.dumps({"query": "=CMD|'/c calc'!A1"})},
+    )
+    assert r.status_code == 201
+
+    r = await signup_client.get(f"/cases/{case_id}/evidence/export?format=csv")
+    assert r.status_code == 200
+
+    # The injected formula should be quoted/neutralized
+    lines = r.text.strip().split("\n")
+    data_row = list(csv.reader([lines[1]]))[0]
+    query_col = data_row[3]  # fourth column is 'query'
+    assert query_col.startswith("'="), f"expected formula-neutralized cell, got: {query_col!r}"
