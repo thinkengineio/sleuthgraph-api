@@ -2,8 +2,10 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
-from sleuthgraph.db import get_engine, get_session_factory
+from sleuthgraph.db import Base, get_engine, get_session, get_session_factory
 
 
 @pytest.fixture(autouse=True)
@@ -14,16 +16,59 @@ def _set_env(monkeypatch):
     monkeypatch.setenv("S3_ACCESS_KEY", "x")
     monkeypatch.setenv("S3_SECRET_KEY", "x")
     monkeypatch.setenv("SECRET_KEY", "a" * 32)
-    # Clear engine cache between tests so each gets a fresh in-memory DB.
     get_engine.cache_clear()
     get_session_factory.cache_clear()
 
 
 @pytest.fixture
-async def client():
-    # Import here so env fixtures apply first.
+async def test_engine():
+    """Shared in-memory sqlite engine using StaticPool so sessions share state."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    async with engine.begin() as conn:
+        # Ensure auth models are imported so their tables register on metadata
+        from sleuthgraph.auth import models as _auth_models  # noqa: F401
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
+async def client(test_engine):
+    """FastAPI test client wired to a shared in-memory DB."""
+    from sleuthgraph.auth.backend import cookie_transport
     from sleuthgraph.main import app
 
+    # Disable Secure flag so httpx over http://test sends cookies back.
+    cookie_transport.cookie_secure = False
+
+    TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
+
+    async def override_get_session():
+        async with TestSession() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+            else:
+                await session.commit()
+
+    app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+    app.dependency_overrides.clear()
+    cookie_transport.cookie_secure = True
+
+
+@pytest.fixture
+def enable_signup(monkeypatch):
+    """Set AUTH_ALLOW_SIGNUP=true BEFORE app import so the register router mounts.
+
+    Use together with ``fresh_app`` — this fixture only flips the env.
+    """
+    monkeypatch.setenv("AUTH_ALLOW_SIGNUP", "true")
