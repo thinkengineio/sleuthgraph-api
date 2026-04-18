@@ -31,8 +31,13 @@ async def test_engine():
         poolclass=StaticPool,
     )
     async with engine.begin() as conn:
-        # Ensure auth models are imported so their tables register on metadata
+        # Ensure all models are imported so their tables register on metadata
+        # before create_all runs. Order matters: auth → cases → entities →
+        # relationships (FK chain).
         from sleuthgraph.auth import models as _auth_models  # noqa: F401
+        from sleuthgraph.cases import models as _cases_models  # noqa: F401
+        from sleuthgraph.entities import models as _ent_models  # noqa: F401
+        from sleuthgraph.relationships import models as _rel_models  # noqa: F401
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
