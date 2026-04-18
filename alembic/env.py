@@ -15,8 +15,7 @@ from sleuthgraph.config import get_settings
 from sleuthgraph.db import Base
 
 # Load models so their metadata is registered on Base.metadata.
-# (No models yet — Phase 2 will add user, Phase 3 adds cases/entities.)
-# Placeholder imports go here as models land.
+from sleuthgraph.auth import models as _auth_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
