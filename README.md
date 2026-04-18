@@ -70,6 +70,51 @@ Set `AUTH_ADMIN_EMAIL` + `AUTH_ADMIN_PASSWORD` in `deploy/.env` before `docker c
 - DB-backed session revocation (currently JWT)
 - Frontend login page (Phase 8)
 
+## Cases, Entities, Relationships (Phase 3)
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/cases` | Create a new investigation case |
+| GET | `/cases` | List my cases (query: `status`, `limit`, `offset`) |
+| GET | `/cases/{case_id}` | Get one case |
+| PATCH | `/cases/{case_id}` | Update case (name, status, tags) |
+| DELETE | `/cases/{case_id}` | Soft-delete a case |
+| POST | `/cases/{case_id}/entities` | Create an entity in a case |
+| GET | `/cases/{case_id}/entities` | List entities (query: `type`, `limit`, `offset`) |
+| GET | `/cases/{case_id}/entities/{entity_id}` | Get one entity |
+| PATCH | `/cases/{case_id}/entities/{entity_id}` | Update entity (label, attrs, confidence) |
+| DELETE | `/cases/{case_id}/entities/{entity_id}` | Soft-delete entity |
+| POST | `/cases/{case_id}/relationships` | Create a relationship (immutable) |
+| GET | `/cases/{case_id}/relationships` | List relationships (query: `rel_type`, `src`, `dst`, `limit`, `offset`) |
+| GET | `/cases/{case_id}/relationships/{rel_id}` | Get one relationship |
+| DELETE | `/cases/{case_id}/relationships/{rel_id}` | Soft-delete relationship |
+| GET | `/cases/{case_id}/graph` | Flat graph dump (vertices + edges) |
+
+### Entity types
+
+`PERSON`, `ORGANIZATION`, `DOMAIN`, `IP_ADDRESS`, `EMAIL`, `PHONE`, `URL`, `CRYPTO_ADDRESS`.
+
+### Relationship types
+
+`OWNS`, `EMPLOYED_BY`, `REGISTERED_BY`, `HOSTED_ON`, `RESOLVES_TO`, `ASSOCIATED_WITH`, `COMMUNICATED_WITH`, `MENTIONS`.
+
+### Graph model
+
+- One shared Apache AGE graph (`sleuthgraph`); each entity becomes a vertex labeled by its type; each relationship becomes an edge.
+- SQL is source of truth; AGE is a materialized mirror written in the same transaction as the SQL row.
+- `case_id` is a property on every vertex and edge, so `/cases/{case_id}/graph` filters by it.
+- Soft-deletes remove the AGE vertex/edge but preserve the SQL row (chain of custody for Phase 4).
+
+### Ownership
+
+Every endpoint checks that the current user owns the case; unauthorized access returns 404 (not 403) so existence isn't leaked.
+
+### Immutability
+
+Relationships have no update endpoint. Edits happen via delete + recreate. Entities can be updated (label / attrs / confidence), but the AGE vertex gets re-MERGEd on every update so the graph stays in sync.
+
 ## Tests
 
 ```bash
