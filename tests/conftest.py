@@ -42,6 +42,7 @@ async def client(test_engine):
     from sleuthgraph.auth.backend import cookie_transport
     from sleuthgraph.main import app
 
+    original_secure = cookie_transport.cookie_secure
     # Disable Secure flag so httpx over http://test sends cookies back.
     cookie_transport.cookie_secure = False
 
@@ -59,10 +60,12 @@ async def client(test_engine):
 
     app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
-    cookie_transport.cookie_secure = True
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.clear()
+        cookie_transport.cookie_secure = original_secure
 
 
 @pytest.fixture
@@ -79,6 +82,7 @@ async def signup_client(monkeypatch, test_engine):
     # Disable Secure flag on the cookie transport so httpx over http://test
     # actually sends the session cookie back on subsequent requests.
     from sleuthgraph.auth.backend import cookie_transport
+    original_secure = cookie_transport.cookie_secure
     cookie_transport.cookie_secure = False
 
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
@@ -95,11 +99,13 @@ async def signup_client(monkeypatch, test_engine):
 
     app.dependency_overrides[get_session] = override_get_session
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-    app.dependency_overrides.clear()
-    # Restore the original value so other tests are not affected
-    cookie_transport.cookie_secure = True
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.clear()
+        # Restore the original value so other tests are not affected
+        cookie_transport.cookie_secure = original_secure
 
 
 @pytest.fixture
