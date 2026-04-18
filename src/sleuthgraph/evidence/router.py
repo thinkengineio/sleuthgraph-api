@@ -19,6 +19,7 @@ from sleuthgraph.auth.deps import current_active_user
 from sleuthgraph.auth.models import User
 from sleuthgraph.cases.repository import CaseRepository
 from sleuthgraph.db import get_session
+from sleuthgraph.evidence.deps import get_storage
 from sleuthgraph.evidence.repository import EvidenceRepository
 from sleuthgraph.evidence.schemas import (
     EvidenceCreate,
@@ -40,13 +41,9 @@ async def _verify_case_ownership(
         raise HTTPException(status_code=404, detail="not found")
 
 
-def _get_storage() -> EvidenceStorage:
-    return EvidenceStorage()
-
-
 def _build_repo(
     session: AsyncSession = Depends(get_session),
-    storage: EvidenceStorage = Depends(_get_storage),
+    storage: EvidenceStorage = Depends(get_storage),
 ) -> EvidenceRepository:
     return EvidenceRepository(session, storage)
 
