@@ -21,6 +21,8 @@ from sleuthgraph.routers import health
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     engine = get_engine()
+    from sleuthgraph.auth.bootstrap import bootstrap_admin
+    await bootstrap_admin()
     yield
     await engine.dispose()
 
