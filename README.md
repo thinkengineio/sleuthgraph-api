@@ -146,6 +146,12 @@ Apache 2.0 — see [LICENSE](../sleuthgraph/LICENSE).
 
 **No PUT, PATCH, or DELETE** on evidence — append-only by design. Chain-of-custody requires evidence outlives even soft-deleted cases.
 
+### Environment contract
+
+| Var | Default | Purpose |
+|---|---|---|
+| `EVIDENCE_MAX_UPLOAD_BYTES` | `52428800` (50 MiB) | Hard cap on evidence file upload size; requests exceeding this are rejected with 413 before the body is fully buffered. |
+
 ### Design
 
 - Blob stored in MinIO at `case/{case_id}/ev/{sha256_hex}` — same payload never uploaded twice.

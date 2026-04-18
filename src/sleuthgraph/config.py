@@ -70,6 +70,13 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
+    # Evidence uploads
+    evidence_max_upload_bytes: int = Field(
+        default=50 * 1024 * 1024,
+        ge=1,
+        description="Max evidence upload size in bytes (default 50 MiB).",
+    )
+
     # AI (optional — only required for Phase 10 features)
     anthropic_api_key: str | None = None
 

@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sleuthgraph.auth.deps import current_active_user
 from sleuthgraph.auth.models import User
 from sleuthgraph.cases.repository import CaseRepository
+from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_session
 from sleuthgraph.evidence.deps import get_storage
 from sleuthgraph.evidence.repository import EvidenceRepository
@@ -60,12 +61,30 @@ async def create_evidence(
     repo: EvidenceRepository = Depends(_build_repo),
 ) -> EvidenceRead:
     await _verify_case_ownership(case_id, user, session)
+
+    max_bytes = get_settings().evidence_max_upload_bytes
+
+    # Note: a Content-Length pre-check is not applied here because for
+    # multipart requests the header reflects the full envelope (boundary +
+    # all parts), not the file part alone. Comparing it against the per-file
+    # cap would either produce false positives (rejecting valid uploads) or
+    # require fragile headroom math. Guard 2 (bounded file.read) is the
+    # precise, binding enforcement.
+
     try:
         data = EvidenceCreate.model_validate_json(metadata)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"invalid metadata: {e}")
 
-    payload = await file.read()
+    # Bounded read: request one byte beyond the limit so we can detect overflow
+    # without buffering the full malicious payload.
+    payload = await file.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"evidence payload exceeds {max_bytes} bytes",
+        )
+
     ev = await repo.create(
         case_id, user.id, data, payload, file.content_type,
     )
