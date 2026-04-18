@@ -10,6 +10,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sleuthgraph import __version__
+from sleuthgraph.auth.backend import auth_backend
+from sleuthgraph.auth.deps import fastapi_users
+from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_engine
 from sleuthgraph.routers import health
@@ -17,10 +20,8 @@ from sleuthgraph.routers import health
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     engine = get_engine()
     yield
-    # Shutdown
     await engine.dispose()
 
 
@@ -41,6 +42,24 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+
+    # Auth routers: login / logout always, register only when enabled
+    app.include_router(
+        fastapi_users.get_auth_router(auth_backend),
+        prefix="/auth",
+        tags=["auth"],
+    )
+    if settings.auth_allow_signup:
+        app.include_router(
+            fastapi_users.get_register_router(UserRead, UserCreate),
+            prefix="/auth",
+            tags=["auth"],
+        )
+    app.include_router(
+        fastapi_users.get_users_router(UserRead, UserUpdate),
+        prefix="/users",
+        tags=["users"],
+    )
 
     return app
 
