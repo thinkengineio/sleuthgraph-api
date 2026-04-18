@@ -115,3 +115,104 @@ def test_no_update_schema_exists():
     assert not hasattr(s, "RelationshipUpdate"), (
         "RelationshipUpdate must not exist; use delete+recreate for edits"
     )
+
+
+# ---------------------------------------------------------------------------
+# attrs key validation (HIGH-1 / map-key injection regression tests)
+# ---------------------------------------------------------------------------
+
+def test_attrs_accepts_valid_keys():
+    src, dst = uuid.uuid4(), uuid.uuid4()
+    rc = RelationshipCreate(
+        src_entity_id=src,
+        dst_entity_id=dst,
+        rel_type=RelationshipType.OWNS,
+        attrs={"foo": 1, "bar_baz": "x", "_leading_underscore": 2},
+    )
+    assert rc.attrs["foo"] == 1
+
+
+def test_attrs_accepts_nested_valid():
+    """Four levels of nesting with valid keys is allowed."""
+    src, dst = uuid.uuid4(), uuid.uuid4()
+    rc = RelationshipCreate(
+        src_entity_id=src,
+        dst_entity_id=dst,
+        rel_type=RelationshipType.OWNS,
+        attrs={"a": {"b": {"c": {"d": "leaf"}}}},
+    )
+    assert rc.attrs["a"]["b"]["c"]["d"] == "leaf"
+
+
+def test_attrs_rejects_non_identifier_key():
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs={"bad key": 1},
+        )
+
+
+def test_attrs_rejects_cypher_injection_key():
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs={"name SET v.admin = true //": 1},
+        )
+
+
+def test_attrs_rejects_long_key():
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs={"a" * 65: 1},
+        )
+
+
+def test_attrs_rejects_empty_key():
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs={"": 1},
+        )
+
+
+def test_attrs_rejects_leading_digit_key():
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs={"1foo": 1},
+        )
+
+
+def test_attrs_rejects_depth_over_4():
+    """Nesting 5 levels deep should be rejected."""
+    deep = {"a": {"b": {"c": {"d": {"e": "too deep"}}}}}
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs=deep,
+        )
+
+
+def test_attrs_rejects_size_over_64kb():
+    """Serialized size > 64 KB should be rejected."""
+    big = {f"key_{i:04d}": "v" * 10 for i in range(5000)}
+    with pytest.raises(ValidationError):
+        RelationshipCreate(
+            src_entity_id=uuid.uuid4(),
+            dst_entity_id=uuid.uuid4(),
+            rel_type=RelationshipType.OWNS,
+            attrs=big,
+        )
