@@ -131,3 +131,33 @@ ruff format .
 ## License
 
 Apache 2.0 — see [LICENSE](../sleuthgraph/LICENSE).
+
+## Evidence chain of custody (Phase 4)
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/cases/{case_id}/evidence` | Multipart upload: `file` + JSON `metadata` → 201 EvidenceRead |
+| GET | `/cases/{case_id}/evidence` | Paginated list (`entity_id`, `source_plugin`, `limit`, `offset`) |
+| GET | `/cases/{case_id}/evidence/{ev_id}` | One evidence record |
+| GET | `/cases/{case_id}/evidence/{ev_id}/blob` | 307 redirect to presigned MinIO URL (5-min expiry) |
+| GET | `/cases/{case_id}/evidence/export?format=json\|csv` | Full ledger dump for legal handoff |
+
+**No PUT, PATCH, or DELETE** on evidence — append-only by design. Chain-of-custody requires evidence outlives even soft-deleted cases.
+
+### Design
+
+- Blob stored in MinIO at `case/{case_id}/ev/{sha256_hex}` — same payload never uploaded twice.
+- `response_hash` is SHA-256 of the raw bytes uploaded.
+- `reproducibility_spec` validated with the same identifier-regex rules as entity `attrs` (defense against Cypher/SQL injection when plugin responses are serialized into this field in Phase 5+).
+- Idempotent upload: repository does HEAD-before-PUT on MinIO; replays are no-ops.
+- SQL row insert + MinIO upload are atomic from the API perspective: blob upload happens before SQL commit; any failure rolls back the row (orphan blob is cheap to garbage-collect).
+
+### Deployment note — MinIO endpoint for browser downloads
+
+The presigned URL returned by `/blob` embeds `S3_ENDPOINT`. For docker-compose local dev, `S3_ENDPOINT=http://minio:9000` points at the internal docker network hostname — it will NOT resolve from a browser on the host. Either:
+1. Put MinIO behind a reverse proxy reachable at the same hostname inside and outside the container network, OR
+2. Run MinIO with a public `MINIO_SERVER_URL` and set `S3_ENDPOINT` to that public URL so presigned URLs are browser-reachable.
+
+For production (single-host Docker Compose), use option 2 with an HTTPS reverse proxy (caddy/traefik) in front of MinIO.
