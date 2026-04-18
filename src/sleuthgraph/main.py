@@ -17,6 +17,7 @@ from sleuthgraph.auth.ping import router as auth_ping_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.entities.router import router as entities_router
+from sleuthgraph.evidence.export import router as evidence_export_router
 from sleuthgraph.evidence.router import router as evidence_router
 from sleuthgraph.graph.router import router as graph_router
 from sleuthgraph.relationships.router import router as relationships_router
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
 
     app.include_router(cases_router)
     app.include_router(entities_router)
+    app.include_router(evidence_export_router)
     app.include_router(relationships_router)
     app.include_router(graph_router)
     app.include_router(evidence_router)
