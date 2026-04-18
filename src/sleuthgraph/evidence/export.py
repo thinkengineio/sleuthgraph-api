@@ -28,6 +28,22 @@ CSV_COLUMNS = [
     "entity_id", "reproducibility_spec",
 ]
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+
+
+def _csv_safe(value) -> str:
+    """Neutralize CSV injection (CWE-1236) by prefixing leading formula chars.
+
+    Excel and LibreOffice interpret cells that start with =, +, -, or @ as
+    formulas when a CSV is opened. Prefixing a single quote suppresses that
+    interpretation without altering the logical value for non-spreadsheet
+    consumers.
+    """
+    s = "" if value is None else str(value)
+    if s.startswith(_FORMULA_PREFIXES):
+        return "'" + s
+    return s
+
 
 @router.get("/export")
 async def export_evidence_ledger(
@@ -58,7 +74,9 @@ async def export_evidence_ledger(
         }
         return JSONResponse(content=payload)
 
-    # CSV
+    # CSV — UUIDs, integers, hex digests, and ISO timestamps are safe by
+    # construction (no leading formula chars possible). Only user-controlled
+    # text fields need the _csv_safe guard.
     buf = io.StringIO()
     writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(CSV_COLUMNS)
@@ -66,13 +84,13 @@ async def export_evidence_ledger(
         writer.writerow([
             str(e.id),
             e.timestamp.isoformat() if e.timestamp else "",
-            e.source_plugin,
-            e.query,
-            e.response_hash,
+            _csv_safe(e.source_plugin),
+            _csv_safe(e.query),
+            e.response_hash,  # hex digest — safe
             e.response_bytes,
-            e.response_content_type or "",
+            _csv_safe(e.response_content_type or ""),
             str(e.entity_id) if e.entity_id else "",
-            json.dumps(e.reproducibility_spec, sort_keys=True, separators=(",", ":")),
+            _csv_safe(json.dumps(e.reproducibility_spec, sort_keys=True, separators=(",", ":"))),
         ])
 
     filename = f"case-{case_id}-evidence.csv"
