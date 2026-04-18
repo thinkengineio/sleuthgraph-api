@@ -66,6 +66,43 @@ async def client(test_engine):
 
 
 @pytest.fixture
+async def signup_client(monkeypatch, test_engine):
+    """Variant of ``client`` that has AUTH_ALLOW_SIGNUP=true when the app is constructed."""
+    monkeypatch.setenv("AUTH_ALLOW_SIGNUP", "true")
+
+    # Force a fresh app so create_app() picks up the env change
+    from importlib import reload
+    import sleuthgraph.main as main_module
+    reload(main_module)
+    app = main_module.app
+
+    # Disable Secure flag on the cookie transport so httpx over http://test
+    # actually sends the session cookie back on subsequent requests.
+    from sleuthgraph.auth.backend import cookie_transport
+    cookie_transport.cookie_secure = False
+
+    TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
+
+    async def override_get_session():
+        async with TestSession() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+            else:
+                await session.commit()
+
+    app.dependency_overrides[get_session] = override_get_session
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+    # Restore the original value so other tests are not affected
+    cookie_transport.cookie_secure = True
+
+
+@pytest.fixture
 def enable_signup(monkeypatch):
     """Set AUTH_ALLOW_SIGNUP=true BEFORE app import so the register router mounts.
 
