@@ -15,6 +15,7 @@ from sleuthgraph.auth.deps import fastapi_users
 from sleuthgraph.auth.oidc import router as oidc_router
 from sleuthgraph.auth.ping import router as auth_ping_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
+from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_engine
 from sleuthgraph.routers import health
@@ -88,6 +89,8 @@ def create_app() -> FastAPI:
     )
     app.include_router(oidc_router, prefix="/auth", tags=["auth"])
     app.include_router(auth_ping_router, prefix="/auth", tags=["auth"])
+
+    app.include_router(cases_router)
 
     return app
 
