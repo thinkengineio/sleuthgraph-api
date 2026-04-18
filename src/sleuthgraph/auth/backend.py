@@ -1,7 +1,8 @@
 """Auth backend: cookie transport + JWT strategy.
 
-Signs session JWTs with the shared ``secret_key``. Swap JWTStrategy for
-``DatabaseStrategy`` later if session revocation is required.
+Signs session JWTs with a purpose-specific subkey derived from the master
+``SECRET_KEY`` via HKDF. Swap JWTStrategy for ``DatabaseStrategy`` later if
+session revocation is required.
 """
 
 from fastapi_users.authentication import (
@@ -11,6 +12,7 @@ from fastapi_users.authentication import (
 )
 
 from sleuthgraph.config import get_settings
+from sleuthgraph.crypto import jwt_signing_key
 
 _settings = get_settings()
 
@@ -25,7 +27,7 @@ cookie_transport = CookieTransport(
 
 def get_jwt_strategy() -> JWTStrategy:
     s = get_settings()
-    return JWTStrategy(secret=s.secret_key, lifetime_seconds=s.auth_session_lifetime_seconds)
+    return JWTStrategy(secret=jwt_signing_key(), lifetime_seconds=s.auth_session_lifetime_seconds)
 
 
 auth_backend = AuthenticationBackend(
