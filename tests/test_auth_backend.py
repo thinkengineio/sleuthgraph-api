@@ -21,11 +21,13 @@ def test_auth_backend_name_and_transport():
     assert auth_backend.transport is cookie_transport
 
 
-def test_get_strategy_returns_jwt_strategy_with_secret():
+def test_get_strategy_returns_jwt_strategy_with_derived_secret():
     from sleuthgraph.auth.backend import auth_backend
     from sleuthgraph.config import get_settings
-
+    from sleuthgraph.crypto import jwt_signing_key, _reset_caches
+    _reset_caches()
     strategy = auth_backend.get_strategy()
     assert isinstance(strategy, JWTStrategy)
-    assert strategy.secret == get_settings().secret_key
+    assert strategy.secret == jwt_signing_key()
+    assert strategy.secret != get_settings().secret_key  # proves no reuse
     assert strategy.lifetime_seconds == get_settings().auth_session_lifetime_seconds

@@ -29,7 +29,13 @@ async def test_validate_password_accepts_8_or_more():
     await mgr.validate_password("longenough", user=None)  # should not raise
 
 
-def test_manager_token_secrets_use_settings_secret_key():
+def test_manager_token_secrets_use_derived_subkeys():
+    from sleuthgraph.crypto import password_reset_token_key, verification_token_key, _reset_caches
+    _reset_caches()
     mgr = UserManager(user_db=None)
-    assert mgr.reset_password_token_secret == "s" * 32
-    assert mgr.verification_token_secret == "s" * 32
+    # Derived, not the raw master
+    from sleuthgraph.config import get_settings
+    assert mgr.reset_password_token_secret != get_settings().secret_key
+    assert mgr.reset_password_token_secret == password_reset_token_key()
+    assert mgr.verification_token_secret == verification_token_key()
+    assert mgr.reset_password_token_secret != mgr.verification_token_secret
