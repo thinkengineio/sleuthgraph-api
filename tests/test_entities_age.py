@@ -94,3 +94,30 @@ async def test_label_with_quotes_does_not_inject(postgres_age_session):
     # Cleanup
     await delete_vertex(postgres_age_session, entity.id)
     await postgres_age_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_dollar_quote_in_label_does_not_inject(postgres_age_session):
+    """A label containing '$$' must not escape the random per-call dollar-quote tag.
+
+    In the old ``$$ ... $$`` encoding, a value containing ``$$`` would have
+    terminated the outer dollar-quote early, allowing arbitrary SQL to follow.
+    The random-tag fix (C1) prevents this: the delimiter is unique per call.
+    """
+    entity = _make_entity(label="benign$$ DROP TABLE whatever --")
+    # Must not raise; the $$ is just data inside the random-tagged delimiters.
+    await upsert_vertex(postgres_age_session, entity)
+    await postgres_age_session.commit()
+
+    # Vertex exists with the literal (dollar-sign-containing) label stored.
+    count = await _count_vertices_with_id(postgres_age_session, entity.id)
+    assert count == 1
+
+    # The users table still exists — confirms no DDL injection ran.
+    from sqlalchemy import text as _t
+    r = await postgres_age_session.execute(_t("SELECT count(*) FROM users"))
+    assert r.scalar() >= 0  # just needs to not raise
+
+    # Cleanup
+    await delete_vertex(postgres_age_session, entity.id)
+    await postgres_age_session.commit()

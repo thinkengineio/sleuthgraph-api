@@ -133,3 +133,41 @@ async def test_self_loop_is_allowed(postgres_age_session):
 
     await delete_edge(postgres_age_session, rel.id)
     await postgres_age_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_dollar_quote_in_source_plugin_does_not_inject(postgres_age_session):
+    """A source_plugin value containing '$$' must not escape the dollar-quote tag.
+
+    Validates the random-tag fix (C1) on the relationship path: the delimiter
+    is unique per call, so embedded $$ in string properties is inert.
+    """
+    case_id, e1, e2, _ = await _seed_case_and_two_entities(postgres_age_session)
+    now = datetime.now(timezone.utc)
+    rel = Relationship(
+        id=uuid.uuid4(),
+        case_id=case_id,
+        src_entity_id=e1.id,
+        dst_entity_id=e2.id,
+        rel_type=RelationshipType.RESOLVES_TO.value,
+        confidence=0.9,
+        source_plugin="plugin$$; DROP TABLE users; --",
+        attrs={},
+        created_at=now,
+    )
+
+    # Must not raise; $$ in source_plugin is data inside random-tagged delimiters.
+    await upsert_edge(postgres_age_session, rel)
+    await postgres_age_session.commit()
+
+    count = await _count_edges_with_id(postgres_age_session, rel.id)
+    assert count == 1
+
+    # The users table still exists — confirms no DDL injection ran.
+    from sqlalchemy import text as _t
+    r = await postgres_age_session.execute(_t("SELECT count(*) FROM users"))
+    assert r.scalar() >= 0
+
+    # Cleanup
+    await delete_edge(postgres_age_session, rel.id)
+    await postgres_age_session.commit()
