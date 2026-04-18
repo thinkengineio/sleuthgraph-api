@@ -19,6 +19,7 @@ from sleuthgraph.auth import models as _auth_models  # noqa: F401
 from sleuthgraph.cases import models as _cases_models  # noqa: F401
 from sleuthgraph.entities import models as _entities_models  # noqa: F401
 from sleuthgraph.relationships import models as _rel_models  # noqa: F401
+from sleuthgraph.evidence import models as _evidence_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
