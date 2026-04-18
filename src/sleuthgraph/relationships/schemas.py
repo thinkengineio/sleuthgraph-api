@@ -3,9 +3,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from sleuthgraph.relationships.types import RelationshipType
+from sleuthgraph.graph.validators import _validate_attrs
 
 
 class RelationshipCreate(BaseModel):
@@ -15,6 +16,11 @@ class RelationshipCreate(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     source_plugin: str | None = Field(default=None, max_length=128)
     attrs: dict = Field(default_factory=dict)
+
+    @field_validator("attrs")
+    @classmethod
+    def validate_attrs(cls, v: dict) -> dict:
+        return _validate_attrs(v)
 
 
 # NO RelationshipUpdate — relationships are immutable after create.
