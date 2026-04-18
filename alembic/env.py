@@ -16,6 +16,7 @@ from sleuthgraph.db import Base
 
 # Load models so their metadata is registered on Base.metadata.
 from sleuthgraph.auth import models as _auth_models  # noqa: F401
+from sleuthgraph.cases import models as _cases_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
