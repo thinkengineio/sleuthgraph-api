@@ -8,14 +8,15 @@ from sleuthgraph.relationships.models import Relationship
 from sleuthgraph.relationships.types import RelationshipType
 
 
-def test_relationship_type_has_8_members():
-    assert len(list(RelationshipType)) == 8
+def test_relationship_type_has_9_members():
+    assert len(list(RelationshipType)) == 9
 
 
 def test_relationship_type_values():
     expected = {
         "OWNS", "EMPLOYED_BY", "REGISTERED_BY", "HOSTED_ON",
         "RESOLVES_TO", "ASSOCIATED_WITH", "COMMUNICATED_WITH", "MENTIONS",
+        "SUBDOMAIN_OF",
     }
     assert {rt.value for rt in RelationshipType} == expected
 

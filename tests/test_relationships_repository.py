@@ -550,3 +550,111 @@ async def test_soft_delete_removes_age_edge(postgres_age_session):
     await delete_vertex(session, e1.id)
     await delete_vertex(session, e2.id)
     await session.commit()
+
+
+# ---------------------------------------------------------------------------
+# create_if_not_exists (dedup helper)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_create_if_not_exists_creates_when_absent(db):
+    user = await _make_user(db)
+    case = await _make_case(db, user.id)
+    e1 = await _make_entity(db, case.id, user.id, "e1.example")
+    e2 = await _make_entity(db, case.id, user.id, "e2.example")
+    await db.commit()
+
+    repo = RelationshipRepository(db)
+    rel, created = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+        ),
+    )
+    assert created is True
+    assert rel.rel_type == "SUBDOMAIN_OF"
+
+
+@pytest.mark.asyncio
+async def test_create_if_not_exists_returns_existing(db):
+    user = await _make_user(db)
+    case = await _make_case(db, user.id)
+    e1 = await _make_entity(db, case.id, user.id, "e1.example")
+    e2 = await _make_entity(db, case.id, user.id, "e2.example")
+    await db.commit()
+
+    repo = RelationshipRepository(db)
+    first, c1 = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+        ),
+    )
+    second, c2 = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+        ),
+    )
+    assert c1 is True and c2 is False
+    assert first.id == second.id
+
+
+@pytest.mark.asyncio
+async def test_create_if_not_exists_different_rel_type_creates_new(db):
+    user = await _make_user(db)
+    case = await _make_case(db, user.id)
+    e1 = await _make_entity(db, case.id, user.id, "e1.example")
+    e2 = await _make_entity(db, case.id, user.id, "e2.example")
+    await db.commit()
+
+    repo = RelationshipRepository(db)
+    sub, _ = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+        ),
+    )
+    owns, created = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    assert created is True
+    assert sub.id != owns.id
+
+
+@pytest.mark.asyncio
+async def test_create_if_not_exists_preserves_existing_confidence(db):
+    """Immutable: second call with different confidence does NOT mutate."""
+    user = await _make_user(db)
+    case = await _make_case(db, user.id)
+    e1 = await _make_entity(db, case.id, user.id, "e1.example")
+    e2 = await _make_entity(db, case.id, user.id, "e2.example")
+    await db.commit()
+
+    repo = RelationshipRepository(db)
+    first, _ = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+            confidence=0.5,
+        ),
+    )
+    second, created = await repo.create_if_not_exists(
+        case.id, None,
+        RelationshipCreate(
+            src_entity_id=e1.id, dst_entity_id=e2.id,
+            rel_type=RelationshipType.SUBDOMAIN_OF,
+            confidence=0.99,
+        ),
+    )
+    assert created is False
+    assert second.confidence == 0.5  # original preserved
