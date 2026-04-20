@@ -107,3 +107,39 @@ class EntityRepository:
             await self.session.rollback()
             raise
         return True
+
+    async def get_or_create(
+        self,
+        case_id: uuid.UUID,
+        created_by: uuid.UUID | None,
+        data: EntityCreate,
+    ) -> tuple[Entity, bool]:
+        """Dedup on (case_id, type, label). Returns (entity, was_created).
+
+        If existing entity found, bump confidence to max(existing.confidence, data.confidence)
+        and re-mirror to AGE (so the vertex props reflect the updated confidence).
+        """
+        q = select(Entity).where(
+            Entity.case_id == case_id,
+            Entity.type == data.type.value,
+            Entity.label == data.label,
+            Entity.deleted_at.is_(None),
+        )
+        existing = (await self.session.execute(q)).scalar_one_or_none()
+
+        if existing is not None:
+            if data.confidence > existing.confidence:
+                existing.confidence = data.confidence
+                await self.session.flush()
+                try:
+                    await upsert_vertex(self.session, existing)
+                    await self.session.commit()
+                except Exception:
+                    await self.session.rollback()
+                    raise
+                await self.session.refresh(existing)
+            return existing, False
+
+        # Not found — create via existing path
+        entity = await self.create(case_id, created_by, data)
+        return entity, True
