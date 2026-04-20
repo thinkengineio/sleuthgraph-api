@@ -65,6 +65,30 @@ class RelationshipRepository:
         await self.session.refresh(rel)
         return rel
 
+    async def create_if_not_exists(
+        self,
+        case_id: uuid.UUID,
+        created_by: uuid.UUID | None,
+        data: RelationshipCreate,
+    ) -> tuple[Relationship, bool]:
+        """Dedup on (case_id, src, dst, rel_type). Returns (rel, was_created).
+
+        Immutable semantics: if a matching relationship exists, return it as-is
+        without updating any fields (confidence, source_plugin, attrs).
+        """
+        q = select(Relationship).where(
+            Relationship.case_id == case_id,
+            Relationship.src_entity_id == data.src_entity_id,
+            Relationship.dst_entity_id == data.dst_entity_id,
+            Relationship.rel_type == data.rel_type.value,
+            Relationship.deleted_at.is_(None),
+        )
+        existing = (await self.session.execute(q)).scalar_one_or_none()
+        if existing is not None:
+            return existing, False
+        rel = await self.create(case_id, created_by, data)
+        return rel, True
+
     async def get(
         self, rel_id: uuid.UUID, case_id: uuid.UUID,
     ) -> Relationship | None:
