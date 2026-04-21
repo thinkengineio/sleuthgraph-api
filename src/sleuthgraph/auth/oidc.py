@@ -76,13 +76,18 @@ async def oidc_login(
     s = get_settings()
 
     verifier, challenge = _pkce_pair()
-    state = encode_state(code_verifier=verifier, next_path=next)
+    # Per OIDC Core 1.0 §15.5.2, nonce is a per-request random value we also
+    # assert against the id_token 'nonce' claim in the callback to prevent
+    # replay of captured id_tokens across sessions.
+    oidc_nonce = secrets.token_urlsafe(24)
+    state = encode_state(code_verifier=verifier, next_path=next, oidc_nonce=oidc_nonce)
     auth_url = await client.get_authorization_url(
         redirect_uri=_redirect_uri(request),
         state=state,
         scope=s.oidc_scopes,
         code_challenge=challenge,
         code_challenge_method="S256",
+        extras_params={"nonce": oidc_nonce},
     )
     return RedirectResponse(url=auth_url, status_code=302)
 

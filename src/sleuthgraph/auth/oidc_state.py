@@ -1,10 +1,13 @@
 """Signed state payload for OIDC PKCE round-trip.
 
 Contents:
-    - nonce: CSRF token (random)
-    - code_verifier: PKCE S256 verifier (43-128 url-safe chars)
-    - next_path: relative post-login path, sanitized to start with "/"
-    - iat / exp: standard JWT timestamps, 5-min TTL
+    - csrf: random per-request CSRF token (RFC 6749 §10.12).
+    - oidc_nonce: random per-request value also sent as the IdP's OIDC
+      ``nonce`` parameter; the callback asserts the id_token's ``nonce``
+      claim equals this (OIDC Core 1.0 §3.1.2.1 / §15.5.2 replay protection).
+    - code_verifier: PKCE S256 verifier, RFC 7636 (43-128 url-safe chars).
+    - next_path: relative post-login path, sanitized to start with "/".
+    - iat / exp: standard JWT timestamps, 5-min TTL.
 
 We sign with an HKDF subkey so a leak of session-signing keys does not
 compromise state, and vice-versa.
@@ -32,7 +35,8 @@ class StateError(Exception):
 
 @dataclass(frozen=True)
 class OidcState:
-    nonce: str
+    csrf: str
+    oidc_nonce: str
     code_verifier: str
     next_path: str
 
@@ -49,10 +53,11 @@ def _sanitize_next(next_path: str | None) -> str:
     return next_path
 
 
-def encode_state(*, code_verifier: str, next_path: str | None) -> str:
+def encode_state(*, code_verifier: str, next_path: str | None, oidc_nonce: str) -> str:
     now = int(time.time())
     payload = {
-        "nonce": secrets.token_urlsafe(24),
+        "csrf": secrets.token_urlsafe(24),
+        "oidc_nonce": oidc_nonce,
         "cv": code_verifier,
         "n": _sanitize_next(next_path),
         "iat": now,
@@ -68,7 +73,8 @@ def decode_state(token: str) -> OidcState:
         raise StateError("invalid_state") from e
     try:
         return OidcState(
-            nonce=payload["nonce"],
+            csrf=payload["csrf"],
+            oidc_nonce=payload["oidc_nonce"],
             code_verifier=payload["cv"],
             next_path=payload["n"],
         )

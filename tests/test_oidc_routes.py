@@ -80,7 +80,7 @@ async def test_callback_success_sets_cookie_and_redirects(
     from sleuthgraph.crypto import _reset_caches
 
     _reset_caches()
-    state = encode_state(code_verifier="v" * 64, next_path="/")
+    state = encode_state(code_verifier="v" * 64, next_path="/", oidc_nonce="test-nonce")
 
     fake_token = {"access_token": "tok", "token_type": "bearer"}
     fake_client = AsyncMock()
