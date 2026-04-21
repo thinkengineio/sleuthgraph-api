@@ -59,10 +59,11 @@ def _pkce_pair() -> tuple[str, str]:
 
 
 def _redirect_uri(request: Request) -> str:
+    # oidc_redirect_url is guaranteed non-None when oidc_issuer is set
+    # (Settings model_validator enforces this). See H-3 in docs/auth-oidc.md.
     s = get_settings()
-    if s.oidc_redirect_url:
-        return s.oidc_redirect_url
-    return str(request.url_for("oidc_callback"))
+    assert s.oidc_redirect_url is not None, "OIDC_REDIRECT_URL must be set"
+    return s.oidc_redirect_url
 
 
 @router.get("/oidc/login")

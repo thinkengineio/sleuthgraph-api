@@ -5,9 +5,10 @@ as validation errors at startup, not as surprise failures later.
 """
 
 import json
+from functools import lru_cache
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 from pydantic_settings.main import BaseSettings as _BS
@@ -91,6 +92,15 @@ class Settings(BaseSettings):
     # App
     app_name: str = "Sleuthgraph API"
     debug: bool = False
+
+    @model_validator(mode="after")
+    def _require_redirect_url_when_oidc_enabled(self) -> "Settings":
+        if self.oidc_issuer and not self.oidc_redirect_url:
+            raise ValueError(
+                "OIDC_REDIRECT_URL must be set when OIDC_ISSUER is set — "
+                "see docs/auth-oidc.md"
+            )
+        return self
 
     @classmethod
     def settings_customise_sources(

@@ -9,10 +9,16 @@ front door, not a second session system.
     OIDC_ISSUER=https://your-idp.example.com
     OIDC_CLIENT_ID=sleuthgraph
     OIDC_CLIENT_SECRET=...
-    # Optional — override the redirect URI computed from the incoming request.
+    # REQUIRED when OIDC_ISSUER is set. Must be the absolute URL
+    # registered at your IdP. We do NOT derive this from the incoming
+    # request: relying on Host/X-Forwarded-Host lets an attacker
+    # redirect the authorization code to their own domain.
     OIDC_REDIRECT_URL=https://sleuthgraph.yourcompany.com/auth/oidc/callback
     # Optional — comma-separated, default: openid,email,profile
     OIDC_SCOPES=openid,email,profile
+
+If `OIDC_ISSUER` is set but `OIDC_REDIRECT_URL` is not, the app fails
+fast at startup with a Pydantic ValidationError.
 
 Redirect URI registered in your IdP must be:
 

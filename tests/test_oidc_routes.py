@@ -25,6 +25,7 @@ async def test_login_redirects_to_issuer(client: AsyncClient, monkeypatch):
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
 
     fake_client = AsyncMock()
     fake_client.get_authorization_url = AsyncMock(
@@ -41,6 +42,7 @@ async def test_callback_invalid_state_returns_400(client: AsyncClient, monkeypat
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
 
     fake_client = AsyncMock()
     with patch("sleuthgraph.auth.oidc.get_oidc_client", return_value=fake_client):
@@ -57,6 +59,7 @@ async def test_callback_success_sets_cookie_and_redirects(
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
 
     # Create user in the test DB.
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)

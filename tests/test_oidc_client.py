@@ -16,6 +16,7 @@ def test_returns_client_when_configured(monkeypatch):
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
 
     # OpenID.__init__ makes a sync HTTP call to fetch well-known config.
     # Mock it out so we don't need a live IdP in unit tests.
