@@ -20,6 +20,8 @@ from sleuthgraph.entities.router import router as entities_router
 from sleuthgraph.evidence.export import router as evidence_export_router
 from sleuthgraph.evidence.router import router as evidence_router
 from sleuthgraph.graph.router import router as graph_router
+from sleuthgraph.plugins.router import registry_router as plugin_registry_router
+from sleuthgraph.plugins.router import case_router as plugin_case_router
 from sleuthgraph.relationships.router import router as relationships_router
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_engine
@@ -100,6 +102,8 @@ def create_app() -> FastAPI:
     app.include_router(evidence_export_router)
     app.include_router(relationships_router)
     app.include_router(graph_router)
+    app.include_router(plugin_registry_router)
+    app.include_router(plugin_case_router)
     app.include_router(evidence_router)
 
     return app
