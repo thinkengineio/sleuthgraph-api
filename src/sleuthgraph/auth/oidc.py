@@ -18,3 +18,14 @@ async def oidc_status() -> dict:
     if not enabled:
         return {"enabled": False}
     return {"enabled": True, "issuer": s.oidc_issuer}
+
+
+@router.get("/config")
+async def auth_config() -> dict:
+    s = get_settings()
+    return {
+        "signup_enabled": s.auth_allow_signup,
+        "password_reset_enabled": s.auth_allow_password_reset,
+        "email_verify_enabled": s.auth_allow_email_verify,
+        "oidc_enabled": bool(s.oidc_issuer and s.oidc_client_id and s.oidc_client_secret),
+    }
