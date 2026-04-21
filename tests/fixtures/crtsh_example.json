@@ -1,0 +1,26 @@
+[
+  {
+    "min_cert_id": 111,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+    "name_value": "example.com\nwww.example.com",
+    "entry_timestamp": "2024-03-15T10:23:45.123"
+  },
+  {
+    "min_cert_id": 222,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+    "name_value": "*.example.com",
+    "entry_timestamp": "2024-04-10T08:11:22.555"
+  },
+  {
+    "min_cert_id": 333,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+    "name_value": "api.example.com\ndev.example.com\nstaging.example.com",
+    "entry_timestamp": "2024-05-01T14:32:11.999"
+  },
+  {
+    "min_cert_id": 444,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R3",
+    "name_value": "foo.example.org",
+    "entry_timestamp": "2024-06-01T09:00:00.000"
+  }
+]
