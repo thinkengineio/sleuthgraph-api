@@ -231,3 +231,106 @@ async def test_create_writes_age_vertex(postgres_age_session):
     # Cleanup: soft-delete removes the AGE vertex too
     await repo.soft_delete(saved_id, case_id)
     assert not await _age_vertex_exists(postgres_age_session, saved_id)
+
+
+# ---------- get_or_create tests ----------
+
+@pytest.mark.asyncio
+async def test_get_or_create_creates_when_absent(sqlite_db, owner_case):
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    e, created = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com"),
+    )
+    assert created is True
+    assert e.type == "DOMAIN"
+    assert e.label == "example.com"
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_returns_existing(sqlite_db, owner_case):
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    first, created1 = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com"),
+    )
+    second, created2 = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com"),
+    )
+    assert created1 is True
+    assert created2 is False
+    assert first.id == second.id
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_bumps_confidence_upward(sqlite_db, owner_case):
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    first, _ = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com", confidence=0.5),
+    )
+    assert first.confidence == 0.5
+
+    second, created = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com", confidence=0.9),
+    )
+    assert created is False
+    assert second.id == first.id
+    assert second.confidence == 0.9
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_does_not_lower_confidence(sqlite_db, owner_case):
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    first, _ = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com", confidence=0.9),
+    )
+    assert first.confidence == 0.9
+
+    second, _ = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com", confidence=0.3),
+    )
+    assert second.confidence == 0.9
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_different_types_are_different_entities(sqlite_db, owner_case):
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    dom, _ = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example"),
+    )
+    per, created = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.PERSON, label="example"),
+    )
+    assert created is True
+    assert dom.id != per.id
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_ignores_soft_deleted(sqlite_db, owner_case):
+    """If previously-existing entity was soft-deleted, creating again returns a NEW row."""
+    _, case = owner_case
+    repo = EntityRepository(sqlite_db)
+    first, _ = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com"),
+    )
+    await repo.soft_delete(first.id, case.id)
+
+    second, created = await repo.get_or_create(
+        case.id, None,
+        EntityCreate(type=EntityType.DOMAIN, label="example.com"),
+    )
+    assert created is True
+    assert second.id != first.id

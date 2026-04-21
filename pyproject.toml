@@ -23,6 +23,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "authlib>=1.3.2",
     "anthropic>=0.40.0",
+    "tenacity>=9,<10",
 ]
 
 [project.optional-dependencies]
