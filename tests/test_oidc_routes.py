@@ -1,7 +1,7 @@
 """Tests for OIDC login + callback routes."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from sleuthgraph.auth.models import User
 from sleuthgraph.auth.oidc_state import encode_state
-from sleuthgraph.db import get_session
 
 
 @pytest.mark.asyncio
@@ -51,7 +50,9 @@ async def test_callback_invalid_state_returns_400(client: AsyncClient, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_callback_success_sets_cookie_and_redirects(client: AsyncClient, monkeypatch, test_engine):
+async def test_callback_success_sets_cookie_and_redirects(
+    client: AsyncClient, monkeypatch, test_engine
+):
     """Happy-path: existing user with oidc_sub is found, session cookie is set, redirect to /."""
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
@@ -74,6 +75,7 @@ async def test_callback_success_sets_cookie_and_redirects(client: AsyncClient, m
 
     # Build a valid state JWT.
     from sleuthgraph.crypto import _reset_caches
+
     _reset_caches()
     state = encode_state(code_verifier="v" * 64, next_path="/")
 

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sleuthgraph.auth.backend import auth_backend, get_jwt_strategy
+from sleuthgraph.auth.backend import cookie_transport, get_jwt_strategy
 from sleuthgraph.auth.oidc_client import get_oidc_client
 from sleuthgraph.auth.oidc_provision import (
     OidcAccountConflict,
@@ -68,7 +68,7 @@ def _redirect_uri(request: Request) -> str:
 @router.get("/oidc/login")
 async def oidc_login(
     request: Request,
-    next: str = Query(default="/"),
+    next: str = Query(default="/"),  # noqa: A002
 ) -> Response:
     client = get_oidc_client()
     if client is None:
@@ -92,7 +92,7 @@ async def oidc_callback(
     request: Request,
     code: str = Query(...),
     state: str = Query(...),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session),  # noqa: B008
 ) -> Response:
     client = get_oidc_client()
     if client is None:
@@ -100,8 +100,8 @@ async def oidc_callback(
 
     try:
         state_payload = decode_state(state)
-    except StateError:
-        raise HTTPException(status_code=400, detail="invalid_state")
+    except StateError as exc:
+        raise HTTPException(status_code=400, detail="invalid_state") from exc
 
     try:
         token = await client.get_access_token(
@@ -109,15 +109,18 @@ async def oidc_callback(
             redirect_uri=_redirect_uri(request),
             code_verifier=state_payload.code_verifier,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("OIDC token exchange failed")
-        raise HTTPException(status_code=400, detail="oidc_exchange_failed")
+        raise HTTPException(status_code=400, detail="oidc_exchange_failed") from exc
 
     try:
         sub, email = await client.get_id_email(token["access_token"])
-    except Exception:
+    except Exception as exc:
         logger.exception("OIDC userinfo failed")
-        raise HTTPException(status_code=400, detail="oidc_userinfo_failed")
+        raise HTTPException(status_code=400, detail="oidc_userinfo_failed") from exc
+
+    if not email:
+        raise HTTPException(status_code=400, detail="oidc_missing_email")
 
     s = get_settings()
     try:
@@ -128,25 +131,26 @@ async def oidc_callback(
             name=None,  # httpx-oauth's get_id_email doesn't return name; leave null
             allow_signup=s.auth_allow_signup,
         )
-    except OidcAccountNotLinked:
-        raise HTTPException(status_code=403, detail="oidc_account_not_linked")
-    except OidcAccountConflict:
-        raise HTTPException(status_code=409, detail="oidc_account_conflict")
+    except OidcAccountNotLinked as exc:
+        raise HTTPException(status_code=403, detail="oidc_account_not_linked") from exc
+    except OidcAccountConflict as exc:
+        raise HTTPException(status_code=409, detail="oidc_account_conflict") from exc
 
     # Issue session cookie via existing JWT strategy + cookie transport.
     strategy = get_jwt_strategy()
     session_token = await strategy.write_token(user)
 
     response = RedirectResponse(url=state_payload.next_path, status_code=302)
-    # CookieTransport stores cookie settings as instance attributes.
-    # We attach the cookie directly since we're doing a redirect instead of
-    # going through transport.get_login_response() which returns a Response body.
+    # Use cookie_transport directly (typed as CookieTransport, not base Transport)
+    # so mypy sees the concrete cookie_* attributes. We attach the cookie here
+    # because transport.get_login_response() issues a 200 body response, not a
+    # redirect.
     response.set_cookie(
-        key=auth_backend.transport.cookie_name,
+        key=cookie_transport.cookie_name,
         value=session_token,
-        max_age=auth_backend.transport.cookie_max_age,
-        secure=auth_backend.transport.cookie_secure,
-        httponly=auth_backend.transport.cookie_httponly,
-        samesite=auth_backend.transport.cookie_samesite,
+        max_age=cookie_transport.cookie_max_age,
+        secure=cookie_transport.cookie_secure,
+        httponly=cookie_transport.cookie_httponly,
+        samesite=cookie_transport.cookie_samesite,
     )
     return response

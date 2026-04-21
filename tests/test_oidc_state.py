@@ -1,8 +1,10 @@
 """Tests for OIDC state JWT encoding/decoding."""
 
 import time
+
 import pytest
-from sleuthgraph.auth.oidc_state import encode_state, decode_state, StateError
+
+from sleuthgraph.auth.oidc_state import StateError, decode_state, encode_state
 
 
 def test_roundtrip():

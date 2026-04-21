@@ -37,9 +37,7 @@ async def _find_by_sub(session: AsyncSession, sub: str) -> User | None:
 
 
 async def _find_by_email_ci(session: AsyncSession, email: str) -> User | None:
-    result = await session.execute(
-        select(User).where(func.lower(User.email) == email.lower())
-    )
+    result = await session.execute(select(User).where(func.lower(User.email) == email.lower()))
     return result.scalar_one_or_none()
 
 

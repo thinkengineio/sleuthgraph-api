@@ -1,10 +1,6 @@
 """Tests for the OIDC client factory."""
 
-import json
 from unittest.mock import MagicMock, patch
-
-import httpx
-import pytest
 
 from sleuthgraph.auth.oidc_client import get_oidc_client
 
