@@ -12,7 +12,6 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Any
-
 import httpx
 from tenacity import (
     retry,
@@ -31,6 +30,9 @@ from sleuthgraph.plugins.base import (
     RelationshipProposal,
 )
 from sleuthgraph.relationships.types import RelationshipType
+
+MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MiB
+MAX_SUBDOMAINS = 1000  # Per-run cap; excess marked as truncated in evidence
 
 
 class CrtShPlugin(OSINTPlugin):
@@ -58,7 +60,7 @@ class CrtShPlugin(OSINTPlugin):
         url = f"{self.BASE_URL}?q={domain}&output=json"
         raw_bytes, data = await self._fetch(context.http_client, url)
 
-        subdomains = self._extract_subdomains(data, domain)
+        subdomains, truncated = self._extract_subdomains(data, domain)
 
         entities = [
             EntityProposal(
@@ -91,6 +93,8 @@ class CrtShPlugin(OSINTPlugin):
                     "method": "GET",
                     "queried_at": datetime.now(timezone.utc).isoformat(),
                     "subdomain_count": len(entities),
+                    "truncated": truncated,
+                    "max_subdomains": MAX_SUBDOMAINS,
                 },
                 link_to_input=True,
             )
@@ -109,11 +113,23 @@ class CrtShPlugin(OSINTPlugin):
     async def _fetch(
         self, client: httpx.AsyncClient, url: str,
     ) -> tuple[bytes, list[dict[str, Any]]]:
-        resp = await client.get(url, headers={"User-Agent": "sleuthgraph/0.1"})
-        resp.raise_for_status()
-        raw = resp.content
+        """Stream the response body with a hard byte cap, then parse JSON."""
+        chunks: list[bytes] = []
+        total = 0
+        async with client.stream(
+            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"},
+        ) as resp:
+            resp.raise_for_status()
+            async for chunk in resp.aiter_bytes():
+                total += len(chunk)
+                if total > MAX_RESPONSE_BYTES:
+                    raise httpx.HTTPError(
+                        f"crt.sh response exceeded {MAX_RESPONSE_BYTES} bytes; aborted"
+                    )
+                chunks.append(chunk)
+        raw = b"".join(chunks)
         try:
-            data = resp.json()
+            data = json.loads(raw)
         except json.JSONDecodeError:
             data = []
         if not isinstance(data, list):
@@ -121,10 +137,11 @@ class CrtShPlugin(OSINTPlugin):
         return raw, data
 
     @staticmethod
-    def _extract_subdomains(data: list[dict], input_domain: str) -> set[str]:
-        """Flatten crt.sh entries -> set of subdomain strings strictly below input_domain."""
+    def _extract_subdomains(data: list[dict], input_domain: str) -> tuple[set[str], bool]:
+        """Return (subdomains, truncated_flag). Caps at MAX_SUBDOMAINS."""
         suffix = "." + input_domain
         result: set[str] = set()
+        truncated = False
 
         for entry in data:
             name_value = entry.get("name_value", "")
@@ -142,6 +159,9 @@ class CrtShPlugin(OSINTPlugin):
                     continue
                 if not re.match(r"^[a-z0-9._-]+$", name):
                     continue
+                if len(result) >= MAX_SUBDOMAINS:
+                    truncated = True
+                    return result, truncated
                 result.add(name)
 
-        return result
+        return result, truncated

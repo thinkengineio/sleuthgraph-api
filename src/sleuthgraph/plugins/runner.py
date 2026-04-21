@@ -44,6 +44,9 @@ class PluginExecutionError(RuntimeError):
     """Raised by the runner when a plugin throws; wraps the original exception."""
 
 
+MAX_PROPOSALS_PER_RUN = 2000  # defense in depth; per-plugin caps may be tighter
+
+
 class RunResult:
     """What the runner returns to the HTTP layer."""
 
@@ -118,6 +121,12 @@ class PluginRunner:
                 )
                 result: QueryResult = await plugin.query(
                     input_entity, credentials, ctx,
+                )
+
+            total = len(result.entities) + len(result.relationships) + len(result.evidence)
+            if total > MAX_PROPOSALS_PER_RUN:
+                raise PluginExecutionError(
+                    f"plugin {plugin.name} returned {total} proposals (exceeds {MAX_PROPOSALS_PER_RUN})"
                 )
 
             entities_created, rels_created, evidence_created = await self._persist(
