@@ -44,6 +44,27 @@ class PluginExecutionError(RuntimeError):
     """Raised by the runner when a plugin throws; wraps the original exception."""
 
 
+class PluginTypeError(PluginExecutionError):
+    """Input entity type not accepted by plugin, or unrecognized entity type."""
+
+
+_ERROR_TAXONOMY: dict[type, str] = {
+    httpx.TimeoutException: "upstream_timeout",
+    httpx.HTTPStatusError: "upstream_http_error",
+    httpx.HTTPError: "upstream_network_error",
+    ValueError: "validation_error",
+    PluginExecutionError: "plugin_internal",
+}
+
+
+def _classify_error(e: Exception) -> str:
+    """Return a short, non-sensitive taxonomy label + exception type name."""
+    for exc_type, label in _ERROR_TAXONOMY.items():
+        if isinstance(e, exc_type):
+            return f"{label}:{type(e).__name__}"
+    return f"unknown:{type(e).__name__}"
+
+
 MAX_PROPOSALS_PER_RUN = 2000  # defense in depth; per-plugin caps may be tighter
 
 
@@ -91,11 +112,11 @@ class PluginRunner:
         try:
             input_type = EntityType(input_entity.type)
         except ValueError:
-            raise PluginExecutionError(
+            raise PluginTypeError(
                 f"unknown entity type: {input_entity.type}"
             )
         if input_type not in plugin.entity_types_accepted:
-            raise PluginExecutionError(
+            raise PluginTypeError(
                 f"plugin {plugin.name} does not accept entity type {input_entity.type}"
             )
 
@@ -145,10 +166,12 @@ class PluginRunner:
             return RunResult(run, entities_created, rels_created, evidence_created)
 
         except Exception as e:
+            log.exception("plugin %s failed on case %s", plugin.name, case_id)
             # Ensure audit row captures the failure
             run.status = "failed"
             run.finished_at = datetime.now(timezone.utc)
-            run.error_message = str(e)[:2000]
+            # Do NOT persist str(e) — use a sanitized taxonomy label only.
+            run.error_message = _classify_error(e)
             try:
                 await self.session.commit()
             except Exception:
