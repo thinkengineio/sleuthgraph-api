@@ -26,6 +26,10 @@ def get_oidc_client() -> OpenID | None:
     s = get_settings()
     if not is_oidc_configured(s):
         return None
+    # is_oidc_configured guarantees all three are non-None strings.
+    assert s.oidc_issuer is not None
+    assert s.oidc_client_id is not None
+    assert s.oidc_client_secret is not None
     # httpx-oauth auto-discovers endpoints from the well-known config URL.
     well_known = s.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"
     return OpenID(
