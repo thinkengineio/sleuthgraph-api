@@ -148,3 +148,39 @@ async def test_http_500_retries_then_raises():
             await plugin.query(_make_input_domain(), None, ctx)
 
     assert call_count["n"] == 3
+
+
+@pytest.mark.asyncio
+async def test_response_body_over_10mb_aborts():
+    """A response larger than 10 MiB raises httpx.HTTPError after tenacity retries."""
+    plugin = CrtShPlugin()
+    huge_body = b"[" + (b'{"name_value":"x.example.com"},' * 500_000) + b'{}' + b"]"
+    assert len(huge_body) > 10 * 1024 * 1024
+
+    def handler(request):
+        return httpx.Response(200, content=huge_body)
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        ctx = PluginContext(case_id="x", input_entity=_make_input_domain(), http_client=client)
+        with pytest.raises(httpx.HTTPError, match="exceeded"):
+            await plugin.query(_make_input_domain(), None, ctx)
+
+
+@pytest.mark.asyncio
+async def test_extract_subdomains_caps_at_1000_and_marks_truncated():
+    """_extract_subdomains caps the set at MAX_SUBDOMAINS and returns truncated=True."""
+    from sleuthgraph.plugins.builtin.crtsh import MAX_SUBDOMAINS
+
+    entries = [{"name_value": f"sub{i}.example.com"} for i in range(MAX_SUBDOMAINS + 50)]
+    subs, truncated = CrtShPlugin._extract_subdomains(entries, "example.com")
+    assert len(subs) == MAX_SUBDOMAINS
+    assert truncated is True
+
+
+@pytest.mark.asyncio
+async def test_extract_subdomains_below_cap_not_truncated():
+    entries = [{"name_value": f"sub{i}.example.com"} for i in range(10)]
+    subs, truncated = CrtShPlugin._extract_subdomains(entries, "example.com")
+    assert len(subs) == 10
+    assert truncated is False
