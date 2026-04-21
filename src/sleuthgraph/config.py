@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
     oidc_client_secret: str | None = None
+    oidc_scopes: list[str] = Field(default_factory=lambda: ["openid", "email", "profile"])
+    oidc_redirect_url: str | None = Field(
+        default=None,
+        description="Absolute callback URL override. Leave unset to derive from request.",
+    )
 
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
