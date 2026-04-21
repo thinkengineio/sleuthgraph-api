@@ -15,6 +15,9 @@ def test_auth_settings_defaults(monkeypatch):
     assert s.auth_cookie_secure is True
     assert s.auth_session_lifetime_seconds == 60 * 60 * 24 * 7
     assert s.auth_allow_signup is False
+    assert s.auth_allow_password_reset is True
+    assert s.auth_allow_email_verify is False
+    assert s.auth_frontend_base_url == "http://localhost:3000"
     assert s.auth_admin_email is None
     assert s.auth_admin_password is None
     assert s.oidc_issuer is None
