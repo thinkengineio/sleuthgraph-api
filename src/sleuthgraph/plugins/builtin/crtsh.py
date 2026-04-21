@@ -12,6 +12,8 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlencode
+
 import httpx
 from tenacity import (
     retry,
@@ -57,7 +59,7 @@ class CrtShPlugin(OSINTPlugin):
         if not domain:
             return QueryResult()
 
-        url = f"{self.BASE_URL}?q={domain}&output=json"
+        url = f"{self.BASE_URL}?{urlencode({'q': domain, 'output': 'json'})}"
         raw_bytes, data = await self._fetch(context.http_client, url)
 
         subdomains, truncated = self._extract_subdomains(data, domain)
