@@ -60,9 +60,16 @@ def credential_encryption_key() -> bytes:
     return hkdf.derive(master)
 
 
+@cache
+def oidc_state_key() -> str:
+    """Subkey used to sign OIDC state JWTs (PKCE verifier + nonce)."""
+    return _derive(b"sleuthgraph/oidc-state/v1")
+
+
 def _reset_caches() -> None:
     """Test helper: clear all @cache'd subkeys."""
     jwt_signing_key.cache_clear()
     password_reset_token_key.cache_clear()
     verification_token_key.cache_clear()
     credential_encryption_key.cache_clear()
+    oidc_state_key.cache_clear()
