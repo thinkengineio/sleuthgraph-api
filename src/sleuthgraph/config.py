@@ -97,8 +97,7 @@ class Settings(BaseSettings):
     def _require_redirect_url_when_oidc_enabled(self) -> "Settings":
         if self.oidc_issuer and not self.oidc_redirect_url:
             raise ValueError(
-                "OIDC_REDIRECT_URL must be set when OIDC_ISSUER is set — "
-                "see docs/auth-oidc.md"
+                "OIDC_REDIRECT_URL must be set when OIDC_ISSUER is set — see docs/auth-oidc.md"
             )
         return self
 

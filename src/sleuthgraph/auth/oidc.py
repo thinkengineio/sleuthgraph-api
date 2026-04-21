@@ -11,12 +11,15 @@ import hashlib
 import logging
 import secrets
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from httpx_oauth.exceptions import GetIdEmailError, HTTPXOAuthError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sleuthgraph.auth.backend import cookie_transport, get_jwt_strategy
 from sleuthgraph.auth.oidc_client import get_oidc_client, is_oidc_configured
+from sleuthgraph.auth.oidc_id_token import IdTokenError, validate_id_token
 from sleuthgraph.auth.oidc_provision import (
     OidcAccountConflict,
     OidcAccountNotLinked,
@@ -114,26 +117,62 @@ async def oidc_callback(
             redirect_uri=_redirect_uri(request),
             code_verifier=state_payload.code_verifier,
         )
-    except Exception as exc:
+    except (HTTPXOAuthError, httpx.HTTPError, KeyError) as exc:
         logger.exception("OIDC token exchange failed")
         raise HTTPException(status_code=400, detail="oidc_exchange_failed") from exc
 
+    s = get_settings()
+
+    # Extract + validate id_token per OIDC Core 1.0 §3.1.3.7. This replaces
+    # the pre-C-1 behavior of trusting userinfo (get_id_email) alone.
+    id_token = token.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="oidc_missing_id_token")
+
+    assert s.oidc_issuer is not None  # guaranteed by is_oidc_configured gate
+    assert s.oidc_client_id is not None
     try:
-        sub, email = await client.get_id_email(token["access_token"])
-    except Exception as exc:
-        logger.exception("OIDC userinfo failed")
-        raise HTTPException(status_code=400, detail="oidc_userinfo_failed") from exc
+        claims = validate_id_token(
+            id_token,
+            issuer=s.oidc_issuer,
+            client_id=s.oidc_client_id,
+            nonce=state_payload.oidc_nonce,
+        )
+    except IdTokenError as exc:
+        logger.warning("oidc id_token validation failed: %s", exc)
+        raise HTTPException(status_code=400, detail="oidc_invalid_id_token") from exc
+
+    sub = claims.get("sub")
+    email = claims.get("email")
+    # email_verified MUST come from the validated id_token. Some IdPs
+    # (notably Auth0 with custom profile scopes) expose email only via
+    # userinfo — fall back to userinfo for email STRING ONLY, but we
+    # treat the userinfo-only email as unverified unless the id_token
+    # asserted email_verified.
+    email_verified = bool(claims.get("email_verified", False))
+
+    if not sub:
+        raise HTTPException(status_code=400, detail="oidc_missing_sub")
+
+    if not email:
+        # Last-resort fallback: some IdPs put email only in userinfo.
+        try:
+            _sub_ui, email_ui = await client.get_id_email(token["access_token"])
+        except (GetIdEmailError, HTTPXOAuthError, httpx.HTTPError) as exc:
+            logger.exception("OIDC userinfo failed")
+            raise HTTPException(status_code=400, detail="oidc_userinfo_failed") from exc
+        email = email_ui
+        # email_verified stays whatever the id_token said (defaults False).
 
     if not email:
         raise HTTPException(status_code=400, detail="oidc_missing_email")
 
-    s = get_settings()
     try:
         user = await resolve_oidc_user(
             session,
             sub=sub,
             email=email,
-            name=None,  # httpx-oauth's get_id_email doesn't return name; leave null
+            email_verified=email_verified,
             allow_signup=s.auth_allow_signup,
         )
     except OidcAccountNotLinked as exc:

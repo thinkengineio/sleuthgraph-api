@@ -82,12 +82,21 @@ async def test_callback_success_sets_cookie_and_redirects(
     _reset_caches()
     state = encode_state(code_verifier="v" * 64, next_path="/", oidc_nonce="test-nonce")
 
-    fake_token = {"access_token": "tok", "token_type": "bearer"}
+    fake_token = {"access_token": "tok", "id_token": "fake.id.token", "token_type": "bearer"}
     fake_client = AsyncMock()
     fake_client.get_access_token = AsyncMock(return_value=fake_token)
     fake_client.get_id_email = AsyncMock(return_value=("happy-sub", "happy@example.com"))
 
-    with patch("sleuthgraph.auth.oidc.get_oidc_client", return_value=fake_client):
+    fake_claims = {
+        "sub": "happy-sub",
+        "email": "happy@example.com",
+        "email_verified": True,
+        "nonce": "test-nonce",
+    }
+    with (
+        patch("sleuthgraph.auth.oidc.get_oidc_client", return_value=fake_client),
+        patch("sleuthgraph.auth.oidc.validate_id_token", return_value=fake_claims),
+    ):
         r = await client.get(
             f"/auth/oidc/callback?code=authcode&state={state}",
             follow_redirects=False,
@@ -98,3 +107,60 @@ async def test_callback_success_sets_cookie_and_redirects(
     # Session cookie must be set.
     cookie_header = r.headers.get("set-cookie", "")
     assert "sleuthgraph_session" in cookie_header
+
+
+@pytest.mark.asyncio
+async def test_callback_rejects_missing_id_token(client: AsyncClient, monkeypatch):
+    """Token response without id_token is a 400 — we refuse to trust userinfo alone."""
+    monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
+    monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
+    monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
+
+    from sleuthgraph.crypto import _reset_caches
+
+    _reset_caches()
+    state = encode_state(code_verifier="v" * 64, next_path="/", oidc_nonce="test-nonce")
+
+    fake_client = AsyncMock()
+    fake_client.get_access_token = AsyncMock(
+        return_value={"access_token": "tok", "token_type": "bearer"}
+    )
+    with patch("sleuthgraph.auth.oidc.get_oidc_client", return_value=fake_client):
+        r = await client.get(
+            f"/auth/oidc/callback?code=authcode&state={state}",
+            follow_redirects=False,
+        )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "oidc_missing_id_token"
+
+
+@pytest.mark.asyncio
+async def test_callback_rejects_bad_id_token(client: AsyncClient, monkeypatch):
+    """id_token that fails signature/claims validation -> 400."""
+    from sleuthgraph.auth.oidc_id_token import IdTokenError
+
+    monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
+    monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
+    monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
+
+    from sleuthgraph.crypto import _reset_caches
+
+    _reset_caches()
+    state = encode_state(code_verifier="v" * 64, next_path="/", oidc_nonce="test-nonce")
+
+    fake_client = AsyncMock()
+    fake_client.get_access_token = AsyncMock(
+        return_value={"access_token": "tok", "id_token": "bad.id.token", "token_type": "bearer"}
+    )
+    with (
+        patch("sleuthgraph.auth.oidc.get_oidc_client", return_value=fake_client),
+        patch("sleuthgraph.auth.oidc.validate_id_token", side_effect=IdTokenError("bad_signature")),
+    ):
+        r = await client.get(
+            f"/auth/oidc/callback?code=authcode&state={state}",
+            follow_redirects=False,
+        )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "oidc_invalid_id_token"

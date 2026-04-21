@@ -2,10 +2,18 @@
 
 Policy:
     1. sub match  → return user
-    2. email match, no sub on row → link (set oidc_sub), return user
-    3. email match, sub set but differs → conflict (operator must resolve)
-    4. no match, signup disabled → not linked
-    5. no match, signup enabled → provision with random password, verified=True
+    2. email match, no sub on row → link (set oidc_sub) ONLY IF
+       email_verified=True; also invalidate the local password so a
+       previously-squatted account cannot be used to log in by password
+       after SSO linking (H-2).
+    3. email match, sub set but differs → conflict (operator must resolve).
+    4. no match, signup disabled → not linked.
+    5. no match, signup enabled → provision ONLY IF email_verified=True.
+
+Rationale for the email_verified gate (C-2): without it, an attacker
+who can cause their IdP to assert any email they want (without proof
+of ownership) would get automatic linkage to any local account
+sharing that email string.
 """
 
 from __future__ import annotations
@@ -21,7 +29,11 @@ from sleuthgraph.auth.models import User
 
 
 class OidcAccountNotLinked(Exception):
-    """IdP identity does not match any local account and signup is disabled."""
+    """IdP identity does not match any local account, or linkage refused.
+
+    Refusal reasons: ``missing_sub``, ``missing_email``,
+    ``no_matching_account``, ``unverified_email``.
+    """
 
 
 class OidcAccountConflict(Exception):
@@ -46,7 +58,7 @@ async def resolve_oidc_user(
     *,
     sub: str,
     email: str,
-    name: str | None,
+    email_verified: bool,
     allow_signup: bool,
 ) -> User:
     if not sub:
@@ -54,7 +66,7 @@ async def resolve_oidc_user(
     if not email:
         raise OidcAccountNotLinked("missing_email")
 
-    # 1. sub match
+    # 1. sub match — user has logged in via SSO before; trust the binding.
     existing = await _find_by_sub(session, sub)
     if existing is not None:
         return existing
@@ -63,10 +75,15 @@ async def resolve_oidc_user(
     by_email = await _find_by_email_ci(session, email)
     if by_email is not None:
         if by_email.oidc_sub is None:
+            if not email_verified:
+                raise OidcAccountNotLinked("unverified_email")
             by_email.oidc_sub = sub
             by_email.is_verified = True
-            if name and not by_email.name:
-                by_email.name = name
+            # H-2: invalidate the local password so whatever value the
+            # (possibly squatting) previous password-user set cannot be
+            # used to sign in after the account is now SSO-linked. The
+            # legitimate owner can still recover via email-based reset.
+            by_email.hashed_password = _password_helper.hash(secrets.token_urlsafe(32))
             await session.commit()
             await session.refresh(by_email)
             return by_email
@@ -78,6 +95,8 @@ async def resolve_oidc_user(
     # 4/5. no match
     if not allow_signup:
         raise OidcAccountNotLinked("no_matching_account")
+    if not email_verified:
+        raise OidcAccountNotLinked("unverified_email")
 
     user = User(
         id=uuid.uuid4(),
@@ -86,7 +105,6 @@ async def resolve_oidc_user(
         is_active=True,
         is_superuser=False,
         is_verified=True,
-        name=name,
         oidc_sub=sub,
     )
     session.add(user)
