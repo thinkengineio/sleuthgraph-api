@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = True
     auth_session_lifetime_seconds: int = 60 * 60 * 24 * 7
     auth_allow_signup: bool = False
+    auth_allow_password_reset: bool = True
+    auth_allow_email_verify: bool = False
+    auth_frontend_base_url: str = "http://localhost:3000"
     auth_admin_email: str | None = None
     auth_admin_password: str | None = None
 
