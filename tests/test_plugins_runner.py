@@ -17,7 +17,7 @@ from sleuthgraph.plugins.base import (
     RelationshipProposal,
 )
 from sleuthgraph.plugins.registry import PluginNotFoundError, PluginRegistry
-from sleuthgraph.plugins.runner import PluginExecutionError, PluginRunner
+from sleuthgraph.plugins.runner import PluginExecutionError, PluginTypeError, PluginRunner
 from sleuthgraph.relationships.types import RelationshipType
 
 
@@ -204,14 +204,15 @@ async def test_runner_records_failed_status_on_exception(sqlite_db, seeded_case_
     with pytest.raises(PluginExecutionError, match="boom"):
         await runner.run("failing", case.id, domain, created_by=user.id)
 
-    # Verify a failed audit row was written
+    # Verify a failed audit row was written with taxonomy label (not raw exception text)
     from sqlalchemy import select
     from sleuthgraph.plugins.models import PluginRun
     q = select(PluginRun).where(PluginRun.case_id == case.id)
     rows = list((await sqlite_db.execute(q)).scalars())
     assert len(rows) == 1
     assert rows[0].status == "failed"
-    assert "boom" in rows[0].error_message
+    assert "unknown:RuntimeError" in rows[0].error_message
+    assert "boom" not in rows[0].error_message
 
 
 @pytest.mark.asyncio
@@ -231,7 +232,7 @@ async def test_runner_rejects_wrong_entity_type(sqlite_db, seeded_case_with_doma
     registry = PluginRegistry([_FakeCrtShPlugin()])
     runner = PluginRunner(sqlite_db, storage, registry)
 
-    with pytest.raises(PluginExecutionError, match="does not accept"):
+    with pytest.raises(PluginTypeError, match="does not accept"):
         await runner.run("fake_crtsh", case.id, person, created_by=user.id)
 
 
@@ -244,3 +245,36 @@ async def test_runner_unknown_plugin_raises(sqlite_db, seeded_case_with_domain):
 
     with pytest.raises(PluginNotFoundError):
         await runner.run("no-such-plugin", case.id, domain, created_by=user.id)
+
+
+@pytest.mark.asyncio
+async def test_runner_stores_only_taxonomy_label_on_failure(sqlite_db, seeded_case_with_domain):
+    """Raw exception str must NOT appear in PluginRun.error_message."""
+    user, case, domain = seeded_case_with_domain
+    storage = _FakeStorage()
+
+    class _SecretLeakPlugin(OSINTPlugin):
+        name = "secret_leak"
+        version = "0.0.1"
+        entity_types_accepted = [EntityType.DOMAIN]
+        entity_types_produced = []
+
+        async def query(self, input_entity, credentials, context):
+            raise RuntimeError("API key abcdef123 leaked in exception")
+
+    registry = PluginRegistry([_SecretLeakPlugin()])
+    runner = PluginRunner(sqlite_db, storage, registry)
+
+    with pytest.raises(PluginExecutionError):
+        await runner.run("secret_leak", case.id, domain, created_by=user.id)
+
+    from sqlalchemy import select
+    from sleuthgraph.plugins.models import PluginRun
+    q = select(PluginRun).where(PluginRun.case_id == case.id)
+    rows = list((await sqlite_db.execute(q)).scalars())
+    assert len(rows) == 1
+    msg = rows[0].error_message
+    assert "abcdef" not in msg
+    assert "API key" not in msg
+    # Should contain taxonomy label + exception class name
+    assert "unknown:RuntimeError" in msg

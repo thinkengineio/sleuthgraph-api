@@ -17,7 +17,7 @@ from sleuthgraph.evidence.storage import EvidenceStorage
 from sleuthgraph.plugins.deps import get_registry
 from sleuthgraph.plugins.registry import PluginNotFoundError, PluginRegistry
 from sleuthgraph.plugins.repository import PluginRunRepository
-from sleuthgraph.plugins.runner import PluginExecutionError, PluginRunner
+from sleuthgraph.plugins.runner import PluginExecutionError, PluginTypeError, PluginRunner
 from sleuthgraph.plugins.schemas import (
     PluginInfo,
     PluginRunList,
@@ -111,12 +111,10 @@ async def run_plugin(
         result = await runner.run(
             plugin_name, case_id, input_entity, created_by=user.id,
         )
-    except PluginExecutionError as e:
-        msg = str(e).lower()
-        if "does not accept" in msg:
-            raise HTTPException(status_code=422, detail=str(e))
-        # Otherwise treat as upstream failure
-        raise HTTPException(status_code=500, detail=str(e))
+    except PluginTypeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except PluginExecutionError:
+        raise HTTPException(status_code=500, detail="plugin execution failed")
 
     return {
         "run": PluginRunRead.model_validate(result.run).model_dump(mode="json"),
