@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sleuthgraph.auth.backend import cookie_transport, get_jwt_strategy
-from sleuthgraph.auth.oidc_client import get_oidc_client
+from sleuthgraph.auth.oidc_client import get_oidc_client, is_oidc_configured
 from sleuthgraph.auth.oidc_provision import (
     OidcAccountConflict,
     OidcAccountNotLinked,
@@ -33,8 +33,7 @@ logger = logging.getLogger(__name__)
 @router.get("/oidc-status")
 async def oidc_status() -> dict:
     s = get_settings()
-    enabled = bool(s.oidc_issuer and s.oidc_client_id and s.oidc_client_secret)
-    if not enabled:
+    if not is_oidc_configured(s):
         return {"enabled": False}
     return {"enabled": True, "issuer": s.oidc_issuer}
 
@@ -46,13 +45,13 @@ async def auth_config() -> dict:
         "signup_enabled": s.auth_allow_signup,
         "password_reset_enabled": s.auth_allow_password_reset,
         "email_verify_enabled": s.auth_allow_email_verify,
-        "oidc_enabled": bool(s.oidc_issuer and s.oidc_client_id and s.oidc_client_secret),
+        "oidc_enabled": is_oidc_configured(s),
     }
 
 
 def _pkce_pair() -> tuple[str, str]:
-    # 64 bytes → 86-ish url-safe chars.  Spec allows 43-128.
-    verifier = secrets.token_urlsafe(64)[:96]
+    # 64 random bytes -> ~86 url-safe chars. RFC 7636 allows 43-128.
+    verifier = secrets.token_urlsafe(64)
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
     challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
     return verifier, challenge

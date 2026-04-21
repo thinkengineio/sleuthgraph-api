@@ -9,12 +9,22 @@ from __future__ import annotations
 
 from httpx_oauth.clients.openid import OpenID
 
-from sleuthgraph.config import get_settings
+from sleuthgraph.config import Settings, get_settings
+
+
+def is_oidc_configured(settings: Settings | None = None) -> bool:
+    """True iff all three OIDC env vars are set.
+
+    Single source of truth for the "is SSO wired?" check — previously
+    duplicated inline in oidc.py (status, login, callback) and here.
+    """
+    s = settings or get_settings()
+    return bool(s.oidc_issuer and s.oidc_client_id and s.oidc_client_secret)
 
 
 def get_oidc_client() -> OpenID | None:
     s = get_settings()
-    if not (s.oidc_issuer and s.oidc_client_id and s.oidc_client_secret):
+    if not is_oidc_configured(s):
         return None
     # httpx-oauth auto-discovers endpoints from the well-known config URL.
     well_known = s.oidc_issuer.rstrip("/") + "/.well-known/openid-configuration"

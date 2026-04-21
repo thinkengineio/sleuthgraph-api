@@ -18,8 +18,12 @@ def _set_env(monkeypatch):
     monkeypatch.setenv("S3_ACCESS_KEY", "x")
     monkeypatch.setenv("S3_SECRET_KEY", "x")
     monkeypatch.setenv("SECRET_KEY", "a" * 32)
+    from sleuthgraph.config import get_settings
+    get_settings.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture

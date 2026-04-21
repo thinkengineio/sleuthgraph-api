@@ -67,7 +67,9 @@ def oidc_state_key() -> str:
 
 
 def _reset_caches() -> None:
-    """Test helper: clear all @cache'd subkeys."""
+    """Test helper: clear all @cache'd subkeys AND the Settings singleton,
+    so tests that monkeypatch SECRET_KEY see the new value."""
+    get_settings.cache_clear()
     jwt_signing_key.cache_clear()
     password_reset_token_key.cache_clear()
     verification_token_key.cache_clear()

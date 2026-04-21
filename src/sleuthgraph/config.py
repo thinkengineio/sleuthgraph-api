@@ -120,6 +120,11 @@ class Settings(BaseSettings):
         )
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached accessor. Overridden in tests via FastAPI dependency overrides."""
+    """Cached accessor. Overridden in tests via FastAPI dependency overrides.
+
+    Tests that monkeypatch env must call ``get_settings.cache_clear()`` to
+    rebuild the Settings instance.
+    """
     return Settings()

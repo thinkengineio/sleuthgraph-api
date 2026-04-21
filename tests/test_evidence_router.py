@@ -219,6 +219,8 @@ async def test_invalid_metadata_returns_422(signup_client_with_fake_storage):
 async def test_upload_larger_than_max_returns_413(signup_client_with_fake_storage, monkeypatch):
     """Payloads over the configured cap are rejected with 413 before the body is buffered."""
     monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
+    from sleuthgraph.config import get_settings
+    get_settings.cache_clear()
     signup_client, _ = signup_client_with_fake_storage
     await _register_and_login(signup_client, "big@example.com")
     case_id = await _create_case(signup_client)
@@ -237,6 +239,8 @@ async def test_upload_larger_than_max_returns_413(signup_client_with_fake_storag
 async def test_upload_at_limit_succeeds(signup_client_with_fake_storage, monkeypatch):
     """Payload exactly at the cap is accepted."""
     monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
+    from sleuthgraph.config import get_settings
+    get_settings.cache_clear()
     signup_client, _ = signup_client_with_fake_storage
     await _register_and_login(signup_client, "exact@example.com")
     case_id = await _create_case(signup_client)
