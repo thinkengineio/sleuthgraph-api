@@ -31,3 +31,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             raise InvalidPasswordException(
                 reason=f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
             )
+
+    async def on_after_forgot_password(self, user, token, request=None):
+        from sleuthgraph.auth.email import get_email_sender
+        await get_email_sender().send_password_reset(user.email, token)
+
+    async def on_after_request_verify(self, user, token, request=None):
+        from sleuthgraph.auth.email import get_email_sender
+        await get_email_sender().send_email_verify(user.email, token)
