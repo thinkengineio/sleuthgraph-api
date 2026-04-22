@@ -99,6 +99,17 @@ async def test_host_endpoint_used_for_domain_input():
 
 
 @pytest.mark.asyncio
+async def test_http_error_propagates_to_runner():
+    """Upstream 5xx must raise so runner marks the run failed (Code-Important-8)."""
+    plugin = UrlhausPlugin()
+    async with httpx.AsyncClient(transport=_transport(status=503, body=b"down")) as client:
+        ent = _entity(EntityType.URL, "http://x.test/")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        with pytest.raises(httpx.HTTPError):
+            await plugin.query(ent, None, ctx)
+
+
+@pytest.mark.asyncio
 async def test_empty_label_empty_result():
     plugin = UrlhausPlugin()
     async with httpx.AsyncClient(transport=_transport()) as client:

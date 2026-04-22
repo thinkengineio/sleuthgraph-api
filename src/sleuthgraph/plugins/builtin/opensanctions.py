@@ -60,13 +60,12 @@ class OpenSanctionsPlugin(OSINTPlugin):
 
         url = f"{self.BASE_URL}?{urlencode({'q': term, 'limit': 10})}"
 
-        raw_bytes = b""
-        hit_count = 0
-        fetch_status = "ok"
-        try:
-            raw_bytes, hit_count = await self._fetch(context.http_client, url)
-        except httpx.HTTPError:
-            fetch_status = "error"
+        # Let httpx.HTTPError propagate — the plugin runner's error
+        # taxonomy classifies it as upstream_http_error and marks the
+        # run failed. Swallowing it here would surface as a "succeeded
+        # with 0 hits" result, which is misleading for compliance /
+        # audit use cases (Code-Important-8).
+        raw_bytes, hit_count = await self._fetch(context.http_client, url)
 
         matched = hit_count > 0
 
@@ -81,7 +80,7 @@ class OpenSanctionsPlugin(OSINTPlugin):
                     "queried_at": datetime.now(timezone.utc).isoformat(),
                     "hit_count": hit_count,
                     "matched": matched,
-                    "fetch_status": fetch_status,
+                    "fetch_status": "ok",
                 },
                 link_to_input=True,
             )

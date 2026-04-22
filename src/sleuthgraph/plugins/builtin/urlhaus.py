@@ -66,13 +66,13 @@ class UrlhausPlugin(OSINTPlugin):
             endpoint = self.HOST_ENDPOINT
             form = {"host": label}
 
-        raw_bytes = b""
-        parsed: Any = None
-        fetch_status = "ok"
-        try:
-            raw_bytes, parsed = await self._fetch(context.http_client, endpoint, form)
-        except httpx.HTTPError:
-            fetch_status = "error"
+        # Let httpx.HTTPError propagate — the plugin runner's error
+        # taxonomy classifies it as upstream_http_error and marks the
+        # run failed. Swallowing it here would surface as a "succeeded
+        # with 0 hits" result, which is especially misleading for
+        # URLhaus where absence of a hit is a meaningful signal
+        # (Code-Important-8).
+        raw_bytes, parsed = await self._fetch(context.http_client, endpoint, form)
 
         query_status = ""
         malicious = False
@@ -98,7 +98,7 @@ class UrlhausPlugin(OSINTPlugin):
                     "queried_at": datetime.now(timezone.utc).isoformat(),
                     "query_status": query_status,
                     "malicious": malicious,
-                    "fetch_status": fetch_status,
+                    "fetch_status": "ok",
                 },
                 link_to_input=True,
             )

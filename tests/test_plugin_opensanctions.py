@@ -84,6 +84,24 @@ async def test_empty_label_returns_empty_result():
 
 
 @pytest.mark.asyncio
+async def test_http_error_propagates_to_runner():
+    """5xx from upstream must raise so runner marks run failed (not silently ok).
+
+    Code-Important-8: previously the plugin swallowed httpx.HTTPError and
+    emitted evidence with fetch_status=\"error\", which the UI rendered as a
+    successful run with zero hits. For a sanctions lookup that is audit-
+    breaking — \"no hits returned\" and \"upstream unreachable\" must be
+    distinguishable.
+    """
+    plugin = OpenSanctionsPlugin()
+    async with httpx.AsyncClient(transport=_transport(status=503, body=b"down")) as client:
+        ent = _entity(EntityType.PERSON, "Acme")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        with pytest.raises(httpx.HTTPError):
+            await plugin.query(ent, None, ctx)
+
+
+@pytest.mark.asyncio
 async def test_evidence_reproducibility_has_url_and_method():
     plugin = OpenSanctionsPlugin()
     async with httpx.AsyncClient(transport=_transport()) as client:
