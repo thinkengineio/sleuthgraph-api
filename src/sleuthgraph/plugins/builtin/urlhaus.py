@@ -82,9 +82,9 @@ class UrlhausPlugin(OSINTPlugin):
                 # Either url_info exists (URL endpoint) or urls list non-empty (host endpoint)
                 url_info = parsed.get("url_info")
                 urls = parsed.get("urls")
-                if isinstance(url_info, dict):
-                    malicious = True
-                elif isinstance(urls, list) and len(urls) > 0:
+                if isinstance(url_info, dict) or (
+                    isinstance(urls, list) and len(urls) > 0
+                ):
                     malicious = True
 
         evidence = [

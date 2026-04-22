@@ -3,11 +3,10 @@
 import uuid
 from types import SimpleNamespace
 
-import httpx
-import pytest
-
 import dns.exception
 import dns.resolver
+import httpx
+import pytest
 
 from sleuthgraph.entities.models import Entity
 from sleuthgraph.entities.types import EntityType
