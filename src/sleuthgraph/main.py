@@ -56,6 +56,10 @@ async def lifespan(app: FastAPI):
     from sleuthgraph.auth.bootstrap import bootstrap_admin
     await bootstrap_admin()
     yield
+    # Release the shared arq Redis pool before shutting down the DB engine
+    # so outstanding enqueue operations drain cleanly.
+    from sleuthgraph.queue.enqueue import close_pool
+    await close_pool()
     await engine.dispose()
 
 

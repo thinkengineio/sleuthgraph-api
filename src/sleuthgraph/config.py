@@ -89,9 +89,19 @@ class Settings(BaseSettings):
     # AI (optional — only required for Phase 10 features)
     anthropic_api_key: str | None = None
 
+    # Background worker
+    arq_redis_url: str | None = Field(
+        default=None,
+        description="Redis URL for the arq task queue. Defaults to redis_url if unset.",
+    )
+
     # App
     app_name: str = "Sleuthgraph API"
     debug: bool = False
+
+    @property
+    def effective_arq_redis_url(self) -> str:
+        return self.arq_redis_url or self.redis_url
 
     @model_validator(mode="after")
     def _require_redirect_url_when_oidc_enabled(self) -> "Settings":

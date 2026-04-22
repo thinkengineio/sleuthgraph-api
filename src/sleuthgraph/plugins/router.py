@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sleuthgraph.auth.deps import current_active_user
@@ -15,6 +16,7 @@ from sleuthgraph.evidence.deps import get_storage
 from sleuthgraph.evidence.schemas import EvidenceRead
 from sleuthgraph.evidence.storage import EvidenceStorage
 from sleuthgraph.plugins.deps import get_registry
+from sleuthgraph.plugins.models import PluginRun
 from sleuthgraph.plugins.registry import PluginNotFoundError, PluginRegistry
 from sleuthgraph.plugins.repository import PluginRunRepository
 from sleuthgraph.plugins.runner import PluginExecutionError, PluginTypeError, PluginRunner
@@ -69,10 +71,7 @@ async def _verify_case_ownership(case_id, user, session):
         raise HTTPException(status_code=404, detail="not found")
 
 
-@case_router.post(
-    "/{plugin_name}/run",
-    status_code=status.HTTP_201_CREATED,
-)
+@case_router.post("/{plugin_name}/run")
 async def run_plugin(
     case_id: uuid.UUID,
     plugin_name: str,
@@ -81,7 +80,7 @@ async def run_plugin(
     session: AsyncSession = Depends(get_session),
     registry: PluginRegistry = Depends(get_registry),
     storage: EvidenceStorage = Depends(get_storage),
-) -> dict:
+) -> JSONResponse:
     await _verify_case_ownership(case_id, user, session)
 
     # Validate body
@@ -101,10 +100,48 @@ async def run_plugin(
 
     # Validate plugin exists
     try:
-        registry.get(plugin_name)
+        plugin = registry.get(plugin_name)
     except PluginNotFoundError:
-        raise HTTPException(status_code=404, detail="plugin not found")
+        raise HTTPException(status_code=404, detail="plugin not found") from None
 
+    if plugin.dispatch_mode == "async":
+        # Create row with status=queued, enqueue task, return 202.
+        run = PluginRun(
+            case_id=case_id,
+            input_entity_id=input_entity.id,
+            plugin_name=plugin.name,
+            plugin_version=plugin.version,
+            status="queued",
+            created_by=user.id,
+        )
+        session.add(run)
+        await session.commit()
+        await session.refresh(run)
+
+        from sleuthgraph.queue import enqueue as _enqueue
+
+        try:
+            await _enqueue.enqueue_plugin_run(run.id)
+        except Exception as exc:
+            # Mark row failed so the UI doesn't show stuck "queued" forever.
+            run.status = "failed"
+            run.error_message = "enqueue_failed"
+            await session.commit()
+            raise HTTPException(
+                status_code=503, detail="worker unavailable"
+            ) from exc
+
+        return JSONResponse(
+            status_code=202,
+            content={
+                "run": PluginRunRead.model_validate(run).model_dump(mode="json"),
+                "entities": [],
+                "relationships": [],
+                "evidence": [],
+            },
+        )
+
+    # Sync path (unchanged from Phase 5)
     runner = PluginRunner(session, storage, registry)
 
     try:
@@ -112,16 +149,28 @@ async def run_plugin(
             plugin_name, case_id, input_entity, created_by=user.id,
         )
     except PluginTypeError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except PluginExecutionError:
-        raise HTTPException(status_code=500, detail="plugin execution failed")
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except PluginExecutionError as e:
+        raise HTTPException(status_code=500, detail="plugin execution failed") from e
 
-    return {
-        "run": PluginRunRead.model_validate(result.run).model_dump(mode="json"),
-        "entities": [EntityRead.model_validate(e).model_dump(mode="json") for e in result.entities_created],
-        "relationships": [RelationshipRead.model_validate(r).model_dump(mode="json") for r in result.relationships_created],
-        "evidence": [EvidenceRead.model_validate(ev).model_dump(mode="json") for ev in result.evidence_created],
-    }
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={
+            "run": PluginRunRead.model_validate(result.run).model_dump(mode="json"),
+            "entities": [
+                EntityRead.model_validate(e).model_dump(mode="json")
+                for e in result.entities_created
+            ],
+            "relationships": [
+                RelationshipRead.model_validate(r).model_dump(mode="json")
+                for r in result.relationships_created
+            ],
+            "evidence": [
+                EvidenceRead.model_validate(ev).model_dump(mode="json")
+                for ev in result.evidence_created
+            ],
+        },
+    )
 
 
 @case_router.get("/runs", response_model=PluginRunList)

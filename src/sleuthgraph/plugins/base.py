@@ -9,7 +9,7 @@ plugins return "proposals" by value, not already-persisted rows.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
@@ -106,6 +106,7 @@ class OSINTPlugin(ABC):
     entity_types_produced: list[EntityType] = []
     requires_credentials: bool = False
     http_timeout_seconds: float = 30.0
+    dispatch_mode: Literal["sync", "async"] = "sync"
 
     @abstractmethod
     async def query(
