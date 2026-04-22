@@ -40,6 +40,7 @@ def test_auth_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("OIDC_ISSUER", "https://id.example.com")
     monkeypatch.setenv("OIDC_CLIENT_ID", "cid")
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
     s = Settings()
     assert s.auth_cookie_name == "custom_cookie"
     assert s.auth_cookie_secure is False
