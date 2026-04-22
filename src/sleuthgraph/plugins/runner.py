@@ -104,6 +104,7 @@ class PluginRunner:
         input_entity: Entity,
         created_by: uuid.UUID | None,
         credentials: dict | None = None,
+        existing_run: PluginRun | None = None,
     ) -> RunResult:
         plugin = self.registry.get(plugin_name)
 
@@ -120,18 +121,26 @@ class PluginRunner:
                 f"plugin {plugin.name} does not accept entity type {input_entity.type}"
             )
 
-        # Audit row: running
-        run = PluginRun(
-            case_id=case_id,
-            input_entity_id=input_entity.id,
-            plugin_name=plugin.name,
-            plugin_version=plugin.version,
-            status="running",
-            created_by=created_by,
-        )
-        self.session.add(run)
-        await self.session.commit()
-        await self.session.refresh(run)
+        if existing_run is None:
+            # Audit row: running (sync path creates the row here)
+            run = PluginRun(
+                case_id=case_id,
+                input_entity_id=input_entity.id,
+                plugin_name=plugin.name,
+                plugin_version=plugin.version,
+                status="running",
+                created_by=created_by,
+            )
+            self.session.add(run)
+            await self.session.commit()
+            await self.session.refresh(run)
+        else:
+            # Async path: row was created with status=queued by the dispatcher
+            # and flipped to running by the queue task. Reuse it.
+            run = existing_run
+            if run.status != "running":
+                run.status = "running"
+                await self.session.commit()
 
         try:
             async with httpx.AsyncClient(timeout=plugin.http_timeout_seconds) as http_client:
