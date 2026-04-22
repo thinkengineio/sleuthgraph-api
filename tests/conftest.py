@@ -19,6 +19,7 @@ def _set_env(monkeypatch):
     monkeypatch.setenv("S3_SECRET_KEY", "x")
     monkeypatch.setenv("SECRET_KEY", "a" * 32)
     from sleuthgraph.config import get_settings
+
     get_settings.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
@@ -41,9 +42,10 @@ async def test_engine():
         from sleuthgraph.auth import models as _auth_models  # noqa: F401
         from sleuthgraph.cases import models as _cases_models  # noqa: F401
         from sleuthgraph.entities import models as _ent_models  # noqa: F401
-        from sleuthgraph.relationships import models as _rel_models  # noqa: F401
         from sleuthgraph.evidence import models as _evidence_models  # noqa: F401
         from sleuthgraph.plugins import models as _plugin_models  # noqa: F401
+        from sleuthgraph.relationships import models as _rel_models  # noqa: F401
+
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
@@ -88,13 +90,16 @@ async def signup_client(monkeypatch, test_engine):
 
     # Force a fresh app so create_app() picks up the env change
     from importlib import reload
+
     import sleuthgraph.main as main_module
+
     reload(main_module)
     app = main_module.app
 
     # Disable Secure flag on the cookie transport so httpx over http://test
     # actually sends the session cookie back on subsequent requests.
     from sleuthgraph.auth.backend import cookie_transport
+
     original_secure = cookie_transport.cookie_secure
     cookie_transport.cookie_secure = False
 
@@ -153,6 +158,7 @@ async def postgres_age_session():
     # Ensure migrations applied — if not, skip (don't run alembic here)
     async with engine.connect() as conn:
         from sqlalchemy import text as _t
+
         try:
             await conn.execute(_t("SELECT 1 FROM entities LIMIT 1"))
         except Exception as e:

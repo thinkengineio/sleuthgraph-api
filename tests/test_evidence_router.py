@@ -10,10 +10,13 @@ from httpx import AsyncClient
 
 class _FakeStorage:
     """Shared with tests/test_evidence_repository.py — in-memory stand-in."""
+
     def __init__(self) -> None:
         self._blobs: dict[str, bytes] = {}
 
-    async def put(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+    async def put(
+        self, key: str, data: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
         self._blobs[key] = data
 
     async def get(self, key: str) -> bytes:
@@ -30,9 +33,13 @@ class _FakeStorage:
 def _patch_age_for_sqlite(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -44,6 +51,7 @@ async def signup_client_with_fake_storage(signup_client):
     """Wrap signup_client so the evidence router uses FakeStorage."""
     import sleuthgraph.main as main_module
     from sleuthgraph.evidence.deps import get_storage as _get_storage
+
     fake = _FakeStorage()
     main_module.app.dependency_overrides[_get_storage] = lambda: fake
     try:
@@ -58,7 +66,8 @@ async def _register_and_login(client: AsyncClient, email: str):
         json={"email": email, "password": "hunter222", "name": email.split("@")[0]},
     )
     await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222"},
+        "/auth/login",
+        data={"username": email, "password": "hunter222"},
     )
 
 
@@ -85,7 +94,8 @@ async def test_post_list_get_blob_flow(signup_client_with_fake_storage):
     data = {"metadata": metadata}
     r = await signup_client.post(
         f"/cases/{case_id}/evidence",
-        files=files, data=data,
+        files=files,
+        data=data,
     )
     assert r.status_code == 201, r.text
     body = r.json()
@@ -136,11 +146,13 @@ async def test_list_filter_by_source_plugin(signup_client_with_fake_storage):
         assert r.status_code == 201
 
     r = await signup_client.get(
-        f"/cases/{case_id}/evidence", params={"source_plugin": "manual"},
+        f"/cases/{case_id}/evidence",
+        params={"source_plugin": "manual"},
     )
     assert r.json()["total"] == 2
     r = await signup_client.get(
-        f"/cases/{case_id}/evidence", params={"source_plugin": "crt.sh@0.1.0"},
+        f"/cases/{case_id}/evidence",
+        params={"source_plugin": "crt.sh@0.1.0"},
     )
     assert r.json()["total"] == 1
 
@@ -161,13 +173,15 @@ async def test_no_update_delete_endpoints(signup_client_with_fake_storage):
 
     # PATCH
     r = await signup_client.patch(
-        f"/cases/{case_id}/evidence/{ev_id}", json={"query": "new"},
+        f"/cases/{case_id}/evidence/{ev_id}",
+        json={"query": "new"},
     )
     assert r.status_code == 405
 
     # PUT
     r = await signup_client.put(
-        f"/cases/{case_id}/evidence/{ev_id}", json={"query": "new"},
+        f"/cases/{case_id}/evidence/{ev_id}",
+        json={"query": "new"},
     )
     assert r.status_code == 405
 
@@ -220,6 +234,7 @@ async def test_upload_larger_than_max_returns_413(signup_client_with_fake_storag
     """Payloads over the configured cap are rejected with 413 before the body is buffered."""
     monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
     from sleuthgraph.config import get_settings
+
     get_settings.cache_clear()
     signup_client, _ = signup_client_with_fake_storage
     await _register_and_login(signup_client, "big@example.com")
@@ -240,6 +255,7 @@ async def test_upload_at_limit_succeeds(signup_client_with_fake_storage, monkeyp
     """Payload exactly at the cap is accepted."""
     monkeypatch.setenv("EVIDENCE_MAX_UPLOAD_BYTES", "100")
     from sleuthgraph.config import get_settings
+
     get_settings.cache_clear()
     signup_client, _ = signup_client_with_fake_storage
     await _register_and_login(signup_client, "exact@example.com")
