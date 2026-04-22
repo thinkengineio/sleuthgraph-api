@@ -5,9 +5,10 @@ as validation errors at startup, not as surprise failures later.
 """
 
 import json
+from functools import lru_cache
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
 from pydantic_settings.main import BaseSettings as _BS
@@ -69,6 +70,11 @@ class Settings(BaseSettings):
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
     oidc_client_secret: str | None = None
+    oidc_scopes: list[str] = Field(default_factory=lambda: ["openid", "email", "profile"])
+    oidc_redirect_url: str | None = Field(
+        default=None,
+        description="Absolute callback URL override. Leave unset to derive from request.",
+    )
 
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
@@ -86,6 +92,14 @@ class Settings(BaseSettings):
     # App
     app_name: str = "Sleuthgraph API"
     debug: bool = False
+
+    @model_validator(mode="after")
+    def _require_redirect_url_when_oidc_enabled(self) -> "Settings":
+        if self.oidc_issuer and not self.oidc_redirect_url:
+            raise ValueError(
+                "OIDC_REDIRECT_URL must be set when OIDC_ISSUER is set — see docs/auth-oidc.md"
+            )
+        return self
 
     @classmethod
     def settings_customise_sources(
@@ -105,6 +119,11 @@ class Settings(BaseSettings):
         )
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached accessor. Overridden in tests via FastAPI dependency overrides."""
+    """Cached accessor. Overridden in tests via FastAPI dependency overrides.
+
+    Tests that monkeypatch env must call ``get_settings.cache_clear()`` to
+    rebuild the Settings instance.
+    """
     return Settings()
