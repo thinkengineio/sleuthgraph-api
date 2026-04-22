@@ -207,6 +207,74 @@ async def test_dns_timeout_tolerated(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_rejects_injected_path(monkeypatch):
+    """Domain labels with embedded `/` must be rejected before URL construction.
+
+    Prevents path-component injection into the RDAP URL template — an attacker
+    controlling `entity.label` (e.g. ``example.com/../../evil``) could otherwise
+    reshape the RDAP request path.
+    """
+    plugin = DnsWhoisPlugin()
+    async with httpx.AsyncClient(transport=_rdap_transport()) as client:
+        ent = _make_input_domain(label="example.com/evil")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        result = await plugin.query(ent, None, ctx)
+
+    assert result.entities == []
+    assert result.relationships == []
+    assert result.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_rejects_query_param_in_label(monkeypatch):
+    """Domain with embedded `?` must be rejected (prevents query-string injection)."""
+    plugin = DnsWhoisPlugin()
+    async with httpx.AsyncClient(transport=_rdap_transport()) as client:
+        ent = _make_input_domain(label="example.com?evil=1")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        result = await plugin.query(ent, None, ctx)
+
+    assert result.entities == []
+    assert result.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_rejects_fragment(monkeypatch):
+    """Domain with `#` fragment must be rejected."""
+    plugin = DnsWhoisPlugin()
+    async with httpx.AsyncClient(transport=_rdap_transport()) as client:
+        ent = _make_input_domain(label="example.com#frag")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        result = await plugin.query(ent, None, ctx)
+
+    assert result.entities == []
+    assert result.evidence == []
+
+
+@pytest.mark.asyncio
+async def test_accepts_idna_punycode(monkeypatch):
+    """`xn--` punycode labels must pass the LDH check (legitimate IDN)."""
+    _install_fake_resolver(
+        monkeypatch,
+        {
+            "A": [_FakeAnswer("1.2.3.4")],
+            "AAAA": dns.resolver.NoAnswer(),
+            "NS": dns.resolver.NoAnswer(),
+            "MX": dns.resolver.NoAnswer(),
+        },
+    )
+    plugin = DnsWhoisPlugin()
+    async with httpx.AsyncClient(transport=_rdap_transport()) as client:
+        ent = _make_input_domain(label="xn--bcher-kva.example")
+        ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
+        result = await plugin.query(ent, None, ctx)
+
+    assert any(e.type == EntityType.IP_ADDRESS for e in result.entities)
+    # Evidence emitted — punycode is legitimate.
+    assert len(result.evidence) == 1
+
+
+@pytest.mark.asyncio
 async def test_evidence_reproducibility_spec_has_required_fields(monkeypatch):
     _install_fake_resolver(
         monkeypatch,

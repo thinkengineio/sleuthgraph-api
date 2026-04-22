@@ -15,8 +15,10 @@ API docs:
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote
 
 import dns.asyncresolver
 import dns.exception
@@ -42,6 +44,17 @@ from sleuthgraph.relationships.types import RelationshipType
 
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MiB RDAP cap
 DNS_LIFETIME_SECONDS = 5.0
+
+# Strict LDH domain regex (RFC 1035 + RFC 5890 punycode tolerance).
+# Total length <= 253 chars; each label 1–63 LDH chars, no leading/trailing hyphen;
+# at least two labels (there must be a dot).
+# This prevents RDAP URL path-component injection via `entity.label`
+# (CWE-20: improper input validation, CWE-74: injection).
+_DOMAIN_RE = re.compile(
+    r"^(?=.{1,253}$)"
+    r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
+    r"(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))+$"
+)
 
 _DNS_TOLERATED = (
     dns.resolver.NXDOMAIN,
@@ -72,6 +85,13 @@ class DnsWhoisPlugin(OSINTPlugin):
     ) -> QueryResult:
         domain = input_entity.label.strip().lower().rstrip(".")
         if not domain:
+            return QueryResult()
+
+        # Security: reject anything that is not a strict LDH domain before it
+        # flows into the RDAP URL template. Treat as an empty result rather
+        # than raising — an arbitrary label-shaped input from elsewhere in the
+        # system should silently produce nothing instead of failing the run.
+        if not _DOMAIN_RE.match(domain):
             return QueryResult()
 
         entities: list[EntityProposal] = []
@@ -170,8 +190,10 @@ class DnsWhoisPlugin(OSINTPlugin):
                 )
             )
 
-        # RDAP — evidence only, never raises
-        rdap_url = self.RDAP_URL_TEMPLATE.format(domain=domain)
+        # RDAP — evidence only, never raises.
+        # Defense in depth: quote the already-validated domain with
+        # safe="" so no character can escape the path component.
+        rdap_url = self.RDAP_URL_TEMPLATE.format(domain=quote(domain, safe=""))
         rdap_raw: bytes = b""
         rdap_ok = False
         try:
