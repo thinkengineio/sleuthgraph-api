@@ -3,11 +3,11 @@
 Start the worker with:
     arq sleuthgraph.queue.arq_settings.WorkerSettings
 
-Design note:
-    ``redis_settings`` is a descriptor so the Settings object is only
-    touched when arq (or enqueue_plugin_run) actually reads the attribute.
-    This keeps ``import sleuthgraph.queue.arq_settings`` side-effect-free so
-    tests can import it without Redis env vars configured.
+redis_settings is computed eagerly at module import because arq's
+``create_pool`` accesses attributes on the class directly in ways that
+bypass descriptor protocol — a lazy descriptor left redis_settings.host
+unreadable and crashed the worker. Production always has env set; tests
+use ``conftest.py`` to populate them before import.
 """
 
 from __future__ import annotations
@@ -38,21 +38,9 @@ def _redis_settings_from_url(url: str) -> RedisSettings:
     )
 
 
-class _LazyRedisSettings:
-    """Descriptor that resolves Settings on first read, not at import time.
-
-    The arq CLI (``arq sleuthgraph.queue.arq_settings.WorkerSettings``)
-    reads ``WorkerSettings.redis_settings`` — which triggers
-    ``__get__`` and evaluates ``get_settings()`` only then.
-    """
-
-    def __get__(self, obj: object, cls: type | None = None) -> RedisSettings:
-        return _redis_settings_from_url(get_settings().effective_arq_redis_url)
-
-
 class WorkerSettings:
     functions = [run_plugin_task]
-    redis_settings = _LazyRedisSettings()
+    redis_settings = _redis_settings_from_url(get_settings().effective_arq_redis_url)
     max_jobs = 10
     job_timeout = 300  # 5 minutes per plugin run
     keep_result = 3600  # Result kept in Redis 1 hour for polling
