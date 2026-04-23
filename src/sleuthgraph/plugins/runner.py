@@ -108,6 +108,11 @@ class PluginRunner:
     ) -> RunResult:
         plugin = self.registry.get(plugin_name)
 
+        # Premium-plugin license gate — refuses on Community installs.
+        from sleuthgraph.licensing import assert_plugin_allowed
+
+        assert_plugin_allowed(plugin_name=plugin.name, premium=plugin.premium)
+
         # Validate input entity type is accepted
         from sleuthgraph.entities.types import EntityType
         try:

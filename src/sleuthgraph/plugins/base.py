@@ -107,6 +107,11 @@ class OSINTPlugin(ABC):
     requires_credentials: bool = False
     http_timeout_seconds: float = 30.0
     dispatch_mode: Literal["sync", "async"] = "sync"
+    # When True, the plugin refuses to run on Community installs.  Set by
+    # enterprise-only plugins shipped via the sleuthgraph-enterprise
+    # distribution.  The runner enforces this via
+    # ``licensing.assert_plugin_allowed`` before dispatch.
+    premium: bool = False
 
     @abstractmethod
     async def query(
