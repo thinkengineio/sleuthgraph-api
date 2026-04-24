@@ -36,6 +36,11 @@ from sleuthgraph.relationships.types import RelationshipType
 
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MiB
 MAX_SNAPSHOTS = 500  # Per-run cap; matches CDX "limit" parameter
+# EntityProposal.label is capped at 512 chars. Wayback occasionally returns
+# very long archived URLs (nested URL-encoded query strings from old
+# redirects). Skip those rather than truncating — a truncated URL isn't
+# re-fetchable and loses its meaning as identifying data.
+MAX_URL_LEN = 500  # leave margin below the 512 schema cap
 
 
 class WaybackCdxPlugin(OSINTPlugin):
@@ -90,7 +95,11 @@ class WaybackCdxPlugin(OSINTPlugin):
 
         entities: list[EntityProposal] = []
         relationships: list[RelationshipProposal] = []
+        skipped_too_long = 0
         for i, (original, first_seen, last_seen, status_code) in enumerate(snapshots):
+            if len(original) > MAX_URL_LEN:
+                skipped_too_long += 1
+                continue
             ref = f"snap-{i}"
             entities.append(
                 EntityProposal(
@@ -127,7 +136,9 @@ class WaybackCdxPlugin(OSINTPlugin):
                     "queried_at": datetime.now(timezone.utc).isoformat(),
                     "snapshot_count": len(entities),
                     "truncated": truncated,
+                    "skipped_too_long": skipped_too_long,
                     "max_snapshots": MAX_SNAPSHOTS,
+                    "max_url_length": MAX_URL_LEN,
                     "fetch_status": fetch_status,
                 },
                 link_to_input=True,

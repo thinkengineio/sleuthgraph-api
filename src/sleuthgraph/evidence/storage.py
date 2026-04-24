@@ -41,8 +41,17 @@ class EvidenceStorage:
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
             region_name=self.region,
-            # path-style for MinIO
-            config=Config(s3={"addressing_style": "path"}),
+            # path-style for MinIO + OCI S3-compat.
+            # request/response checksum "when_required" stops boto3 from
+            # emitting aws-chunked + x-amz-trailer-checksum headers. OCI
+            # Object Storage rejects those with MissingContentLength; also
+            # aiohttp raises when ContentLength and Transfer-Encoding:
+            # chunked are both set.
+            config=Config(
+                s3={"addressing_style": "path"},
+                request_checksum_calculation="when_required",
+                response_checksum_validation="when_required",
+            ),
         )
 
     async def exists(self, key: str) -> bool:
@@ -69,16 +78,14 @@ class EvidenceStorage:
                 if code not in ("404", "NoSuchKey", "NotFound"):
                     raise
 
-            # ContentLength is required by some S3-compatible backends
-            # (notably OCI Object Storage) that don't accept chunked
-            # transfer-encoding on PutObject. AWS S3 and MinIO tolerate
-            # its absence; OCI returns MissingContentLength otherwise.
+            # With checksum_calculation=when_required set on the client
+            # Config, boto3 emits a plain Content-Length header (no
+            # aws-chunked). Works on AWS, MinIO, and OCI S3-compat.
             await client.put_object(
                 Bucket=self.bucket,
                 Key=key,
                 Body=data,
                 ContentType=content_type,
-                ContentLength=len(data),
             )
 
     async def get(self, key: str) -> bytes:
