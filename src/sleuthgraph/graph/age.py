@@ -106,5 +106,12 @@ async def run_cypher(
         raise RuntimeError("could not find a safe dollar-quote tag")
 
     sql = f"SELECT * FROM cypher('{GRAPH_NAME}', {delim} {cypher} {delim}) AS ({return_col} agtype);"
-    result = await session.execute(text(sql))
+    # Use the underlying asyncpg connection via exec_driver_sql to bypass
+    # SQLAlchemy's bind-parameter interpretation. Otherwise any $<digit>
+    # sequence inside a user-controlled string literal in the Cypher body
+    # (e.g. a URL label "...?$1=foo") gets misread as an asyncpg positional
+    # bind placeholder and the statement fails with InvalidRequestError.
+    # Dollar-quote tagging still protects us from Postgres-level parsing.
+    conn = await session.connection()
+    result = await conn.exec_driver_sql(sql)
     return list(result)
