@@ -69,9 +69,16 @@ class EvidenceStorage:
                 if code not in ("404", "NoSuchKey", "NotFound"):
                     raise
 
+            # ContentLength is required by some S3-compatible backends
+            # (notably OCI Object Storage) that don't accept chunked
+            # transfer-encoding on PutObject. AWS S3 and MinIO tolerate
+            # its absence; OCI returns MissingContentLength otherwise.
             await client.put_object(
-                Bucket=self.bucket, Key=key, Body=data,
+                Bucket=self.bucket,
+                Key=key,
+                Body=data,
                 ContentType=content_type,
+                ContentLength=len(data),
             )
 
     async def get(self, key: str) -> bytes:
