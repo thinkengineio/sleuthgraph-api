@@ -48,11 +48,16 @@ class PluginTypeError(PluginExecutionError):
     """Input entity type not accepted by plugin, or unrecognized entity type."""
 
 
+class PluginCredentialMissingError(PluginExecutionError):
+    """Plugin requires a user-provided API key but none is stored."""
+
+
 _ERROR_TAXONOMY: dict[type, str] = {
     httpx.TimeoutException: "upstream_timeout",
     httpx.HTTPStatusError: "upstream_http_error",
     httpx.HTTPError: "upstream_network_error",
     ValueError: "validation_error",
+    PluginCredentialMissingError: "credentials_missing",
     PluginExecutionError: "plugin_internal",
 }
 
@@ -148,6 +153,20 @@ class PluginRunner:
                 await self.session.commit()
 
         try:
+            # BYOK credential lookup: if the plugin needs a user-provided key,
+            # fetch it from the encrypted vault. Done inside the try block so
+            # a missing credential produces a proper failed audit row.
+            if plugin.requires_credentials and credentials is None and created_by is not None:
+                from sleuthgraph.credentials.repository import get_credential
+
+                decrypted = await get_credential(self.session, created_by, plugin.name)
+                if decrypted is None:
+                    raise PluginCredentialMissingError(
+                        f"No API key stored for {plugin.name}. "
+                        f"Store one via POST /credentials/{plugin.name}"
+                    )
+                credentials = {"api_key": decrypted}
+
             async with httpx.AsyncClient(timeout=plugin.http_timeout_seconds) as http_client:
                 ctx = PluginContext(
                     case_id=str(case_id),

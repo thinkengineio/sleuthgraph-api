@@ -1,0 +1,22 @@
+{
+  "data": {
+    "id": "example.com",
+    "type": "domain",
+    "attributes": {
+      "last_dns_records": [
+        {"type": "A", "value": "93.184.216.34"},
+        {"type": "AAAA", "value": "2606:2800:220:1:248:1893:25c8:1946"},
+        {"type": "CNAME", "value": "www.example.com"},
+        {"type": "NS", "value": "ns1.example.com"},
+        {"type": "MX", "value": "mail.example.com"}
+      ],
+      "last_analysis_stats": {
+        "harmless": 70,
+        "malicious": 0,
+        "suspicious": 0,
+        "undetected": 5
+      },
+      "reputation": 0
+    }
+  }
+}

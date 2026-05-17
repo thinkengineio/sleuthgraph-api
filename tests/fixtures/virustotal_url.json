@@ -1,0 +1,17 @@
+{
+  "data": {
+    "id": "aHR0cHM6Ly9leGFtcGxlLmNvbS9tYWx3YXJl",
+    "type": "url",
+    "attributes": {
+      "url": "https://example.com/malware",
+      "last_analysis_stats": {
+        "harmless": 60,
+        "malicious": 5,
+        "suspicious": 2,
+        "undetected": 8
+      },
+      "last_http_response_content_length": 1234,
+      "reputation": -10
+    }
+  }
+}

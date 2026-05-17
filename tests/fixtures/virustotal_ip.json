@@ -1,0 +1,30 @@
+{
+  "data": {
+    "id": "93.184.216.34",
+    "type": "ip_address",
+    "attributes": {
+      "as_owner": "Edgecast Inc.",
+      "asn": 15133,
+      "country": "US",
+      "last_https_certificate": {
+        "extensions": {
+          "subject_alternative_name": [
+            "example.com",
+            "www.example.com",
+            "api.example.com"
+          ]
+        },
+        "issuer": {
+          "O": "Let's Encrypt"
+        }
+      },
+      "last_analysis_stats": {
+        "harmless": 70,
+        "malicious": 0,
+        "suspicious": 0,
+        "undetected": 5
+      },
+      "whois": "NetRange: 93.184.216.0 - 93.184.216.255"
+    }
+  }
+}

@@ -19,7 +19,12 @@ from sleuthgraph.plugins.deps import get_registry
 from sleuthgraph.plugins.models import PluginRun
 from sleuthgraph.plugins.registry import PluginNotFoundError, PluginRegistry
 from sleuthgraph.plugins.repository import PluginRunRepository
-from sleuthgraph.plugins.runner import PluginExecutionError, PluginTypeError, PluginRunner
+from sleuthgraph.plugins.runner import (
+    PluginCredentialMissingError,
+    PluginExecutionError,
+    PluginTypeError,
+    PluginRunner,
+)
 from sleuthgraph.plugins.schemas import (
     PluginInfo,
     PluginRunList,
@@ -148,6 +153,8 @@ async def run_plugin(
         result = await runner.run(
             plugin_name, case_id, input_entity, created_by=user.id,
         )
+    except PluginCredentialMissingError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except PluginTypeError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     except PluginExecutionError as e:

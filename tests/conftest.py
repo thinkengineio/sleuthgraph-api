@@ -41,6 +41,7 @@ async def test_engine():
         # relationships (FK chain).
         from sleuthgraph.auth import models as _auth_models  # noqa: F401
         from sleuthgraph.cases import models as _cases_models  # noqa: F401
+        from sleuthgraph.credentials import models as _cred_models  # noqa: F401
         from sleuthgraph.entities import models as _ent_models  # noqa: F401
         from sleuthgraph.evidence import models as _evidence_models  # noqa: F401
         from sleuthgraph.plugins import models as _plugin_models  # noqa: F401

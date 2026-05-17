@@ -1,0 +1,33 @@
+{
+  "ip_str": "93.184.216.34",
+  "hostnames": ["example.com", "www.example.com"],
+  "domains": ["example.com", "example.org"],
+  "ports": [80, 443, 8080],
+  "vulns": ["CVE-2021-44228", "CVE-2023-12345"],
+  "data": [
+    {
+      "port": 80,
+      "transport": "tcp",
+      "product": "nginx",
+      "version": "1.21.0"
+    },
+    {
+      "port": 443,
+      "transport": "tcp",
+      "product": "nginx",
+      "version": "1.21.0"
+    },
+    {
+      "port": 8080,
+      "transport": "tcp",
+      "product": "Apache httpd",
+      "version": "2.4.51"
+    }
+  ],
+  "os": "Linux",
+  "org": "Edgecast",
+  "isp": "Edgecast",
+  "asn": "AS15133",
+  "city": "Los Angeles",
+  "country_code": "US"
+}
