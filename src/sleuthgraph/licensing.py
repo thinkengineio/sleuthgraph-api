@@ -3,26 +3,22 @@
 Community Edition = this repository, Apache 2.0, features available to
 anyone who self-hosts.
 
-Enterprise Edition = features shipped in a separate private distribution
-(``sleuthgraph-enterprise``) that register themselves at import time when a
-valid license is present.  Without a license the hooks below return ``False``
-and enterprise-gated features raise ``FeatureUnavailable``.
-
-Cloud = the hosted service at sleuthgraph.io.  Community code does not know
-anything about Cloud; cloud-only integrations live in ``sleuthgraph-cloud``.
+Cloud Edition = the hosted service at sleuthgraph.io.  Premium plugins and
+gated features require Cloud.  Cloud-only integrations register themselves at
+import time via ``register_edition_provider``.  Without a registered provider
+the hooks below return ``False`` and Cloud-gated features raise
+``FeatureUnavailable``.
 
 This module is intentionally small and purpose-built:
   - Community code calls ``enterprise_enabled()`` to decide whether to expose
     a UI option / endpoint.
   - Premium plugins set ``premium = True`` and the runner refuses to execute
     them unless ``enterprise_enabled()`` is true.
-  - The real license-validation logic lives in ``sleuthgraph-enterprise``
-    and is injected via ``register_edition_provider``.
+  - The real edition-validation logic is injected via
+    ``register_edition_provider`` (used by the Cloud deployment).
 
-Self-hosters see Community features only.  Enterprise license-holders load
-the enterprise package (installed alongside the API container image via a
-private wheel or a sidecar image) which calls ``register_edition_provider``
-on import.  The hosted service on sleuthgraph.io loads both.
+Self-hosters see Community features only.  The hosted Cloud service on
+sleuthgraph.io calls ``register_edition_provider`` on startup.
 """
 
 from __future__ import annotations
@@ -34,11 +30,11 @@ log = logging.getLogger(__name__)
 
 
 class FeatureUnavailable(RuntimeError):
-    """Raised when code attempts to use an enterprise feature without a license."""
+    """Raised when code attempts to use a Cloud-only feature on a Community install."""
 
 
 class EditionProvider(Protocol):
-    """Interface the enterprise package implements at import time."""
+    """Interface the Cloud deployment implements and registers at startup."""
 
     def enterprise_enabled(self) -> bool: ...
 
@@ -46,7 +42,7 @@ class EditionProvider(Protocol):
 
 
 class _CommunityEditionProvider:
-    """Default provider when no enterprise package is loaded."""
+    """Default provider when no Cloud edition provider is registered."""
 
     def enterprise_enabled(self) -> bool:
         return False
@@ -61,8 +57,8 @@ _provider: EditionProvider = _CommunityEditionProvider()
 def register_edition_provider(provider: EditionProvider) -> None:
     """Install a custom edition provider.
 
-    Called from ``sleuthgraph-enterprise`` on package import.  Community
-    deployments never call this and stay on the default Community provider.
+    Called by the Cloud deployment on startup.  Community deployments never
+    call this and stay on the default Community provider.
     """
     global _provider
     log.info("edition provider registered: %s", type(provider).__name__)
@@ -70,7 +66,7 @@ def register_edition_provider(provider: EditionProvider) -> None:
 
 
 def enterprise_enabled() -> bool:
-    """Return True if an enterprise license is loaded and valid."""
+    """Return True if the Cloud edition provider is registered and active."""
     return _provider.enterprise_enabled()
 
 
@@ -93,7 +89,7 @@ def require_feature(feature_slug: str) -> None:
     """Raise FeatureUnavailable if the feature is not licensed."""
     if not feature_enabled(feature_slug):
         raise FeatureUnavailable(
-            f"Feature '{feature_slug}' requires Sleuthgraph Enterprise or Cloud. "
+            f"Feature '{feature_slug}' requires Sleuthgraph Cloud. "
             f"See https://sleuthgraph.com/pricing"
         )
 
@@ -104,12 +100,12 @@ def assert_plugin_allowed(*, plugin_name: str, premium: bool) -> None:
     if premium and not enterprise_enabled():
         raise FeatureUnavailable(
             f"Plugin '{plugin_name}' is a premium plugin and requires "
-            f"Sleuthgraph Enterprise or Cloud. Community installs cannot run it."
+            f"Sleuthgraph Cloud. Community installs cannot run it."
         )
 
 
 # ---------------------------------------------------------------------------
-# Test helpers — used by the test suite (and by the enterprise package's
+# Test helpers — used by the test suite (and by the Cloud package's
 # own tests) to swap providers.  Not part of the public API.
 # ---------------------------------------------------------------------------
 

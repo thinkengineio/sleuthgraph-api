@@ -29,7 +29,7 @@ def test_community_default_disables_everything():
 def test_require_feature_raises_on_community():
     with pytest.raises(FeatureUnavailable) as exc:
         require_feature("ai-pivot")
-    assert "Enterprise" in str(exc.value)
+    assert "Cloud" in str(exc.value)
 
 
 def test_enterprise_provider_unlocks_features():
