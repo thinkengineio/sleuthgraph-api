@@ -217,7 +217,13 @@ class PluginRunner:
         plugin_full_name: str,
         result: QueryResult,
     ) -> tuple[list, list, list]:
-        """Resolve proposals → real rows with dedup."""
+        """Resolve proposals → real rows with dedup.
+
+        All writes are flushed but NOT individually committed. A single
+        ``session.commit()`` at the end makes the entire persist atomic:
+        either every entity, relationship, and evidence row commits, or
+        none of them do.
+        """
         entity_repo = EntityRepository(self.session)
         rel_repo = RelationshipRepository(self.session)
         evidence_repo = EvidenceRepository(self.session, self.storage)
@@ -234,6 +240,7 @@ class PluginRunner:
                     attrs=ep.attrs,
                     confidence=ep.confidence,
                 ),
+                commit=False,
             )
             ref_to_entity[ep.ref] = entity
             if was_created:
@@ -253,6 +260,7 @@ class PluginRunner:
                     source_plugin=plugin_full_name,
                     attrs=rp.attrs,
                 ),
+                commit=False,
             )
             if was_created:
                 rels_created.append(rel)
@@ -270,8 +278,12 @@ class PluginRunner:
                 ),
                 evp.payload,
                 evp.content_type,
+                commit=False,
             )
             evidence_created.append(ev)
+
+        # Single atomic commit for all entities, relationships, and evidence.
+        await self.session.commit()
 
         return entities_created, rels_created, evidence_created
 

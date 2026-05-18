@@ -31,6 +31,8 @@ class EvidenceRepository:
         data: EvidenceCreate,
         payload: bytes,
         content_type: str | None,
+        *,
+        commit: bool = True,
     ) -> Evidence:
         """Hash payload → upload blob → insert row. All-or-nothing."""
         response_hash = hash_bytes(payload)
@@ -54,12 +56,14 @@ class EvidenceRepository:
 
         try:
             await self.storage.put(response_uri, payload, content_type_final)
-            await self.session.commit()
+            if commit:
+                await self.session.commit()
         except Exception:
             await self.session.rollback()
             raise
 
-        await self.session.refresh(evidence)
+        if commit:
+            await self.session.refresh(evidence)
         return evidence
 
     async def get(

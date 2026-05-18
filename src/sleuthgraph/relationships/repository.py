@@ -40,6 +40,8 @@ class RelationshipRepository:
         case_id: uuid.UUID,
         created_by: uuid.UUID | None,
         data: RelationshipCreate,
+        *,
+        commit: bool = True,
     ) -> Relationship:
         await self._assert_endpoints_in_case(
             case_id, data.src_entity_id, data.dst_entity_id,
@@ -58,11 +60,13 @@ class RelationshipRepository:
         await self.session.flush()
         try:
             await upsert_edge(self.session, rel)
-            await self.session.commit()
+            if commit:
+                await self.session.commit()
         except Exception:
             await self.session.rollback()
             raise
-        await self.session.refresh(rel)
+        if commit:
+            await self.session.refresh(rel)
         return rel
 
     async def create_if_not_exists(
@@ -70,6 +74,8 @@ class RelationshipRepository:
         case_id: uuid.UUID,
         created_by: uuid.UUID | None,
         data: RelationshipCreate,
+        *,
+        commit: bool = True,
     ) -> tuple[Relationship, bool]:
         """Dedup on (case_id, src, dst, rel_type). Returns (rel, was_created).
 
@@ -86,7 +92,7 @@ class RelationshipRepository:
         existing = (await self.session.execute(q)).scalar_one_or_none()
         if existing is not None:
             return existing, False
-        rel = await self.create(case_id, created_by, data)
+        rel = await self.create(case_id, created_by, data, commit=commit)
         return rel, True
 
     async def get(

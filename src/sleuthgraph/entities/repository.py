@@ -24,6 +24,8 @@ class EntityRepository:
         case_id: uuid.UUID,
         created_by: uuid.UUID | None,
         data: EntityCreate,
+        *,
+        commit: bool = True,
     ) -> Entity:
         entity = Entity(
             case_id=case_id,
@@ -37,11 +39,13 @@ class EntityRepository:
         await self.session.flush()  # populate id + row defaults
         try:
             await upsert_vertex(self.session, entity)
-            await self.session.commit()
+            if commit:
+                await self.session.commit()
         except Exception:
             await self.session.rollback()
             raise
-        await self.session.refresh(entity)
+        if commit:
+            await self.session.refresh(entity)
         return entity
 
     async def get(
@@ -113,6 +117,8 @@ class EntityRepository:
         case_id: uuid.UUID,
         created_by: uuid.UUID | None,
         data: EntityCreate,
+        *,
+        commit: bool = True,
     ) -> tuple[Entity, bool]:
         """Dedup on (case_id, type, label). Returns (entity, was_created).
 
@@ -133,13 +139,15 @@ class EntityRepository:
                 await self.session.flush()
                 try:
                     await upsert_vertex(self.session, existing)
-                    await self.session.commit()
+                    if commit:
+                        await self.session.commit()
                 except Exception:
                     await self.session.rollback()
                     raise
-                await self.session.refresh(existing)
+                if commit:
+                    await self.session.refresh(existing)
             return existing, False
 
         # Not found — create via existing path
-        entity = await self.create(case_id, created_by, data)
+        entity = await self.create(case_id, created_by, data, commit=commit)
         return entity, True
