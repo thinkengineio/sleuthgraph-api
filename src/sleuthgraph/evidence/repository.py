@@ -45,7 +45,7 @@ class EvidenceRepository:
             response_hash=response_hash,
             response_uri=response_uri,
             response_bytes=len(payload),
-            response_content_type=content_type_final if content_type else None,
+            response_content_type=content_type_final,
             reproducibility_spec=data.reproducibility_spec,
             created_by=created_by,
         )

@@ -102,8 +102,8 @@ async def test_create_default_content_type(sqlite_db, seeded):
         EvidenceCreate(query="q"),
         b"raw bytes", content_type=None,
     )
-    assert ev.response_content_type is None
-    # Storage should have been called with default content-type
+    assert ev.response_content_type == "application/octet-stream"
+    # Storage should have been called with the same fallback content-type
     assert storage.put_calls[0][2] == "application/octet-stream"
 
 
