@@ -1,7 +1,7 @@
 """Entity schema tests: types, confidence bounds, label length."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -47,8 +47,7 @@ def test_create_confidence_bounds():
 
 
 def test_create_accepts_attrs_dict():
-    e = EntityCreate(type=EntityType.DOMAIN, label="example.com",
-                     attrs={"registrar": "Namecheap"})
+    e = EntityCreate(type=EntityType.DOMAIN, label="example.com", attrs={"registrar": "Namecheap"})
     assert e.attrs == {"registrar": "Namecheap"}
 
 
@@ -76,7 +75,7 @@ def test_update_rejects_empty_label():
 
 
 def test_read_shape():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     er = EntityRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -93,7 +92,7 @@ def test_read_shape():
 
 
 def test_read_allows_null_created_by():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     er = EntityRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -111,6 +110,7 @@ def test_read_allows_null_created_by():
 # ---------------------------------------------------------------------------
 # attrs key validation (HIGH-1 / map-key injection regression tests)
 # ---------------------------------------------------------------------------
+
 
 def test_attrs_accepts_valid_keys():
     e = EntityCreate(

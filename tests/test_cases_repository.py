@@ -20,8 +20,12 @@ async def db(test_engine):
 @pytest.fixture
 async def owner(db):
     u = User(
-        id=uuid.uuid4(), email="owner@example.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
+        id=uuid.uuid4(),
+        email="owner@example.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
     )
     db.add(u)
     await db.commit()
@@ -32,8 +36,12 @@ async def owner(db):
 @pytest.fixture
 async def other_owner(db):
     u = User(
-        id=uuid.uuid4(), email="other@example.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
+        id=uuid.uuid4(),
+        email="other@example.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
     )
     db.add(u)
     await db.commit()
@@ -86,7 +94,7 @@ async def test_get_returns_none_for_soft_deleted(db, owner):
 @pytest.mark.asyncio
 async def test_list_returns_owner_cases_only(db, owner, other_owner):
     repo = CaseRepository(db)
-    c1 = await repo.create(owner.id, CaseCreate(name="A"))
+    await repo.create(owner.id, CaseCreate(name="A"))
     await repo.create(owner.id, CaseCreate(name="B"))
     await repo.create(other_owner.id, CaseCreate(name="Other"))
 

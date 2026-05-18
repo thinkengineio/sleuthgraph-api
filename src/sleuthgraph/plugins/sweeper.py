@@ -17,7 +17,7 @@ Can be wired into an arq periodic task or a FastAPI startup background task.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +41,7 @@ async def sweep_stuck_runs(
 
     Returns the number of rows updated.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=threshold_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=threshold_minutes)
 
     stmt = (
         update(PluginRun)
@@ -51,7 +51,7 @@ async def sweep_stuck_runs(
         )
         .values(
             status="failed",
-            finished_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(UTC),
             error_message=_STALE_ERROR_MESSAGE,
         )
         .execution_options(synchronize_session=False)

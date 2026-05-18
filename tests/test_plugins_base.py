@@ -87,7 +87,8 @@ def test_query_result_composes_proposals():
         entities=[EntityProposal(ref="a", type=EntityType.DOMAIN, label="a.com")],
         relationships=[
             RelationshipProposal(
-                src={"input": True}, dst={"ref": "a"},
+                src={"input": True},
+                dst={"ref": "a"},
                 # TODO: switch to SUBDOMAIN_OF when Task 5.4 lands
                 rel_type=RelationshipType.ASSOCIATED_WITH,
             )
@@ -101,6 +102,7 @@ def test_query_result_composes_proposals():
 
 def test_plugin_context_accepts_arbitrary_input_entity():
     import httpx
+
     ctx = PluginContext(
         case_id="case-uuid",
         input_entity=object(),

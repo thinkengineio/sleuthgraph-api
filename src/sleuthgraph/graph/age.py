@@ -83,7 +83,9 @@ async def set_search_path(session: AsyncSession) -> None:
 
 
 async def run_cypher(
-    session: AsyncSession, cypher: str, return_col: str = "v",
+    session: AsyncSession,
+    cypher: str,
+    return_col: str = "v",
 ) -> list:
     """Run a Cypher statement and return the raw agtype column rows.
 
@@ -105,7 +107,9 @@ async def run_cypher(
         # Should never happen — 96-bit random collision 4x in a row.
         raise RuntimeError("could not find a safe dollar-quote tag")
 
-    sql = f"SELECT * FROM cypher('{GRAPH_NAME}', {delim} {cypher} {delim}) AS ({return_col} agtype);"
+    sql = (
+        f"SELECT * FROM cypher('{GRAPH_NAME}', {delim} {cypher} {delim}) AS ({return_col} agtype);"
+    )
     # Use the underlying asyncpg connection via exec_driver_sql to bypass
     # SQLAlchemy's bind-parameter interpretation. Otherwise any $<digit>
     # sequence inside a user-controlled string literal in the Cypher body

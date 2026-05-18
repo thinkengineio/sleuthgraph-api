@@ -56,7 +56,10 @@ async def list_entities(
     await _verify_case_ownership(case_id, user, session)
     repo = EntityRepository(session)
     items = await repo.list_for_case(
-        case_id, type=type_filter, limit=limit, offset=offset,
+        case_id,
+        entity_type=type_filter,
+        limit=limit,
+        offset=offset,
     )
     return [EntityRead.model_validate(e) for e in items]
 

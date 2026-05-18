@@ -37,7 +37,10 @@ async def list_cases(
     repo: CaseRepository = Depends(_repo),
 ) -> list[CaseRead]:
     items = await repo.list_for_owner(
-        user.id, status=status_filter, limit=limit, offset=offset,
+        user.id,
+        status=status_filter,
+        limit=limit,
+        offset=offset,
     )
     return [CaseRead.model_validate(c) for c in items]
 

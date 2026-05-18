@@ -10,10 +10,18 @@ def test_plugin_run_tablename():
 def test_plugin_run_columns():
     cols = {c.name for c in PluginRun.__table__.columns}
     required = {
-        "id", "case_id", "input_entity_id",
-        "plugin_name", "plugin_version",
-        "started_at", "finished_at", "status", "error_message",
-        "entities_created_count", "relationships_created_count", "evidence_count",
+        "id",
+        "case_id",
+        "input_entity_id",
+        "plugin_name",
+        "plugin_version",
+        "started_at",
+        "finished_at",
+        "status",
+        "error_message",
+        "entities_created_count",
+        "relationships_created_count",
+        "evidence_count",
         "created_by",
     }
     assert required <= cols, f"missing: {required - cols}"

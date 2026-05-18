@@ -17,7 +17,7 @@ from sleuthgraph.plugins.base import (
     RelationshipProposal,
 )
 from sleuthgraph.plugins.registry import PluginNotFoundError, PluginRegistry
-from sleuthgraph.plugins.runner import PluginExecutionError, PluginTypeError, PluginRunner
+from sleuthgraph.plugins.runner import PluginExecutionError, PluginRunner, PluginTypeError
 from sleuthgraph.relationships.types import RelationshipType
 
 
@@ -55,11 +55,13 @@ class _FakeCrtShPlugin(OSINTPlugin):
             ],
             relationships=[
                 RelationshipProposal(
-                    src={"ref": "sub-0"}, dst={"input": True},
+                    src={"ref": "sub-0"},
+                    dst={"input": True},
                     rel_type=RelationshipType.SUBDOMAIN_OF,
                 ),
                 RelationshipProposal(
-                    src={"ref": "sub-1"}, dst={"input": True},
+                    src={"ref": "sub-1"},
+                    dst={"input": True},
                     rel_type=RelationshipType.SUBDOMAIN_OF,
                 ),
             ],
@@ -88,9 +90,13 @@ class _FailingPlugin(OSINTPlugin):
 def _patch_age_for_sqlite(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -107,8 +113,12 @@ async def sqlite_db(test_engine):
 @pytest.fixture
 async def seeded_case_with_domain(sqlite_db):
     u = User(
-        id=uuid.uuid4(), email="o@x.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
+        id=uuid.uuid4(),
+        email="o@x.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
     )
     sqlite_db.add(u)
     await sqlite_db.commit()
@@ -117,8 +127,12 @@ async def seeded_case_with_domain(sqlite_db):
     await sqlite_db.commit()
     await sqlite_db.refresh(case)
     domain = Entity(
-        case_id=case.id, type=EntityType.DOMAIN.value, label="example.com",
-        attrs={}, confidence=1.0, created_by=u.id,
+        case_id=case.id,
+        type=EntityType.DOMAIN.value,
+        label="example.com",
+        attrs={},
+        confidence=1.0,
+        created_by=u.id,
     )
     sqlite_db.add(domain)
     await sqlite_db.commit()
@@ -127,6 +141,7 @@ async def seeded_case_with_domain(sqlite_db):
 
 
 # ---- Registry tests ----
+
 
 def test_registry_register_and_get():
     reg = PluginRegistry([_FakeCrtShPlugin()])
@@ -149,6 +164,7 @@ def test_registry_unknown_name_raises():
 
 # ---- Runner tests ----
 
+
 @pytest.mark.asyncio
 async def test_runner_happy_path(sqlite_db, seeded_case_with_domain):
     user, case, domain = seeded_case_with_domain
@@ -157,7 +173,10 @@ async def test_runner_happy_path(sqlite_db, seeded_case_with_domain):
     runner = PluginRunner(sqlite_db, storage, registry)
 
     result = await runner.run(
-        "fake_crtsh", case.id, domain, created_by=user.id,
+        "fake_crtsh",
+        case.id,
+        domain,
+        created_by=user.id,
     )
 
     # Audit row
@@ -184,7 +203,7 @@ async def test_runner_dedups_on_second_run(sqlite_db, seeded_case_with_domain):
     registry = PluginRegistry([_FakeCrtShPlugin()])
     runner = PluginRunner(sqlite_db, storage, registry)
 
-    first = await runner.run("fake_crtsh", case.id, domain, created_by=user.id)
+    await runner.run("fake_crtsh", case.id, domain, created_by=user.id)
     second = await runner.run("fake_crtsh", case.id, domain, created_by=user.id)
 
     # Second run: entities already exist, so was_created=False for all
@@ -206,7 +225,9 @@ async def test_runner_records_failed_status_on_exception(sqlite_db, seeded_case_
 
     # Verify a failed audit row was written with taxonomy label (not raw exception text)
     from sqlalchemy import select
+
     from sleuthgraph.plugins.models import PluginRun
+
     q = select(PluginRun).where(PluginRun.case_id == case.id)
     rows = list((await sqlite_db.execute(q)).scalars())
     assert len(rows) == 1
@@ -221,8 +242,12 @@ async def test_runner_rejects_wrong_entity_type(sqlite_db, seeded_case_with_doma
     user, case, _domain = seeded_case_with_domain
     # Create a PERSON entity instead
     person = Entity(
-        case_id=case.id, type=EntityType.PERSON.value, label="Alice",
-        attrs={}, confidence=1.0, created_by=user.id,
+        case_id=case.id,
+        type=EntityType.PERSON.value,
+        label="Alice",
+        attrs={},
+        confidence=1.0,
+        created_by=user.id,
     )
     sqlite_db.add(person)
     await sqlite_db.commit()
@@ -269,7 +294,9 @@ async def test_runner_stores_only_taxonomy_label_on_failure(sqlite_db, seeded_ca
         await runner.run("secret_leak", case.id, domain, created_by=user.id)
 
     from sqlalchemy import select
+
     from sleuthgraph.plugins.models import PluginRun
+
     q = select(PluginRun).where(PluginRun.case_id == case.id)
     rows = list((await sqlite_db.execute(q)).scalars())
     assert len(rows) == 1

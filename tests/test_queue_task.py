@@ -147,9 +147,7 @@ async def test_task_not_found_returns_status(sqlite_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_task_runs_plugin_and_marks_succeeded(
-    sqlite_session_factory, seeded_case_and_entity
-):
+async def test_task_runs_plugin_and_marks_succeeded(sqlite_session_factory, seeded_case_and_entity):
     user_id, case_id, ent_id = seeded_case_and_entity
 
     async with sqlite_session_factory() as s:

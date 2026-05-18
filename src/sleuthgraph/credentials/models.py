@@ -17,9 +17,7 @@ from sleuthgraph.db import Base
 class Credential(Base):
     __tablename__ = "credentials"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        GUID(), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         GUID(),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -27,10 +25,6 @@ class Credential(Base):
     )
     plugin_name: Mapped[str] = mapped_column(String(128), nullable=False)
     encrypted_key: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    __table_args__ = (
-        UniqueConstraint("user_id", "plugin_name"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "plugin_name"),)

@@ -72,7 +72,7 @@ def test_redis_settings_error_surfaces_on_access(monkeypatch):
     mod = importlib.import_module("sleuthgraph.queue.arq_settings")
 
     # Now swap get_settings to raise and confirm access path surfaces it.
-    fake = types.SimpleNamespace()
+    types.SimpleNamespace()
 
     def _boom():
         raise RuntimeError("simulated settings failure")

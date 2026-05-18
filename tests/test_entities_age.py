@@ -4,7 +4,7 @@ Skipped automatically on sqlite-only test runs.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
@@ -16,7 +16,7 @@ from sleuthgraph.graph.age import GRAPH_NAME
 
 
 def _make_entity(label="test-example.com", etype=EntityType.DOMAIN):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Entity(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -31,11 +31,13 @@ def _make_entity(label="test-example.com", etype=EntityType.DOMAIN):
 
 async def _count_vertices_with_id(session, entity_id):
     await session.execute(text('SET search_path = ag_catalog, "$user", public;'))
-    r = await session.execute(text(
-        f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
-        f"MATCH (v {{id: '{entity_id}'}}) RETURN count(v) AS c "
-        f"$$) AS (c agtype);"
-    ))
+    r = await session.execute(
+        text(
+            f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
+            f"MATCH (v {{id: '{entity_id}'}}) RETURN count(v) AS c "
+            f"$$) AS (c agtype);"
+        )
+    )
     row = r.first()
     # agtype is returned; strip trailing '::int' if present and parse
     raw = str(row[0])
@@ -115,6 +117,7 @@ async def test_dollar_quote_in_label_does_not_inject(postgres_age_session):
 
     # The users table still exists — confirms no DDL injection ran.
     from sqlalchemy import text as _t
+
     r = await postgres_age_session.execute(_t("SELECT count(*) FROM users"))
     assert r.scalar() >= 0  # just needs to not raise
 

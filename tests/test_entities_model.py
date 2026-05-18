@@ -13,8 +13,14 @@ def test_entity_type_has_8_members():
 
 def test_entity_type_values():
     expected = {
-        "PERSON", "ORGANIZATION", "DOMAIN", "IP_ADDRESS",
-        "EMAIL", "PHONE", "URL", "CRYPTO_ADDRESS",
+        "PERSON",
+        "ORGANIZATION",
+        "DOMAIN",
+        "IP_ADDRESS",
+        "EMAIL",
+        "PHONE",
+        "URL",
+        "CRYPTO_ADDRESS",
     }
     assert {e.value for e in EntityType} == expected
 
@@ -26,8 +32,16 @@ def test_entity_table_name():
 def test_entity_columns():
     cols = {c.name for c in Entity.__table__.columns}
     required = {
-        "id", "case_id", "type", "label", "attrs", "confidence",
-        "created_by", "created_at", "updated_at", "deleted_at",
+        "id",
+        "case_id",
+        "type",
+        "label",
+        "attrs",
+        "confidence",
+        "created_by",
+        "created_at",
+        "updated_at",
+        "deleted_at",
     }
     assert required <= cols, f"missing: {required - cols}"
 

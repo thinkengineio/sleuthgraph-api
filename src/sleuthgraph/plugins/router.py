@@ -35,7 +35,8 @@ from sleuthgraph.relationships.schemas import RelationshipRead
 
 registry_router = APIRouter(prefix="/plugins", tags=["plugins"])
 case_router = APIRouter(
-    prefix="/cases/{case_id}/plugins", tags=["plugins"],
+    prefix="/cases/{case_id}/plugins",
+    tags=["plugins"],
 )
 
 
@@ -66,7 +67,7 @@ async def get_plugin(
     try:
         plugin = registry.get(name)
     except PluginNotFoundError:
-        raise HTTPException(status_code=404, detail="plugin not found")
+        raise HTTPException(status_code=404, detail="plugin not found") from None
     return _plugin_info(plugin)
 
 
@@ -124,9 +125,7 @@ async def run_plugin(
             run.status = "failed"
             run.error_message = "enqueue_failed"
             await session.commit()
-            raise HTTPException(
-                status_code=503, detail="worker unavailable"
-            ) from exc
+            raise HTTPException(status_code=503, detail="worker unavailable") from exc
 
         return JSONResponse(
             status_code=202,
@@ -143,7 +142,10 @@ async def run_plugin(
 
     try:
         result = await runner.run(
-            plugin_name, case_id, input_entity, created_by=user.id,
+            plugin_name,
+            case_id,
+            input_entity,
+            created_by=user.id,
         )
     except PluginCredentialMissingError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
@@ -185,12 +187,17 @@ async def list_runs(
     await _verify_case_ownership(case_id, user, session)
     repo = PluginRunRepository(session)
     items, total = await repo.list_for_case(
-        case_id, status=status_filter, plugin_name=plugin_name,
-        limit=limit, offset=offset,
+        case_id,
+        status=status_filter,
+        plugin_name=plugin_name,
+        limit=limit,
+        offset=offset,
     )
     return PluginRunList(
         items=[PluginRunRead.model_validate(r) for r in items],
-        total=total, limit=limit, offset=offset,
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

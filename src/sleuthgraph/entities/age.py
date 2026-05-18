@@ -40,18 +40,11 @@ async def upsert_vertex(session: AsyncSession, entity: Entity) -> None:
     props_json = _encode_props(props)
 
     label = entity.type
-    cypher = (
-        f"MERGE (v:{label} {{id: '{entity.id}'}}) "
-        f"SET v = {props_json} "
-        f"RETURN v"
-    )
+    cypher = f"MERGE (v:{label} {{id: '{entity.id}'}}) SET v = {props_json} RETURN v"
     await run_cypher(session, cypher)
 
 
 async def delete_vertex(session: AsyncSession, entity_id: uuid.UUID) -> None:
     """Detach-delete the vertex (also removes incident edges)."""
-    cypher = (
-        f"MATCH (v {{id: '{entity_id}'}}) "
-        f"DETACH DELETE v"
-    )
+    cypher = f"MATCH (v {{id: '{entity_id}'}}) DETACH DELETE v"
     await run_cypher(session, cypher)

@@ -15,7 +15,7 @@ surfaced as httpx.HTTPStatusError so the runner's error taxonomy picks it up.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -164,7 +164,7 @@ class GithubPublicPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "match_count": match_count,
                     "fetch_status": fetch_status,
                 },
@@ -172,9 +172,7 @@ class GithubPublicPlugin(OSINTPlugin):
             )
         ]
 
-        return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence
-        )
+        return QueryResult(entities=entities, relationships=relationships, evidence=evidence)
 
     @retry(
         stop=stop_after_attempt(3),
@@ -182,9 +180,7 @@ class GithubPublicPlugin(OSINTPlugin):
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch(
-        self, client: httpx.AsyncClient, url: str
-    ) -> tuple[bytes, Any, int]:
+    async def _fetch(self, client: httpx.AsyncClient, url: str) -> tuple[bytes, Any, int]:
         """Returns (raw_bytes, parsed_json_or_None, status_code).
 
         404 responses return cleanly (status=404, parsed=None) instead of raising,
@@ -216,9 +212,7 @@ class GithubPublicPlugin(OSINTPlugin):
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)
                 if total > MAX_RESPONSE_BYTES:
-                    raise httpx.HTTPError(
-                        f"github response exceeded {MAX_RESPONSE_BYTES} bytes"
-                    )
+                    raise httpx.HTTPError(f"github response exceeded {MAX_RESPONSE_BYTES} bytes")
                 chunks.append(chunk)
         raw = b"".join(chunks)
         try:

@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     # matches current settings. Divergence means env loaded late or a test
     # mutated the singleton.
     from sleuthgraph.auth.backend import cookie_transport
+
     settings = get_settings()
     if cookie_transport.cookie_secure != settings.auth_cookie_secure:
         raise RuntimeError(
@@ -55,11 +56,13 @@ async def lifespan(app: FastAPI):
         )
 
     from sleuthgraph.auth.bootstrap import bootstrap_admin
+
     await bootstrap_admin()
     yield
     # Release the shared arq Redis pool before shutting down the DB engine
     # so outstanding enqueue operations drain cleanly.
     from sleuthgraph.queue.enqueue import close_pool
+
     await close_pool()
     await engine.dispose()
 

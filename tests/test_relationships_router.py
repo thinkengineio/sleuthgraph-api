@@ -16,9 +16,13 @@ import sleuthgraph.relationships.models as _rel_models  # noqa: F401
 def _patch_age_for_sqlite(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -32,7 +36,8 @@ async def _register_and_login(client: AsyncClient, email: str):
     )
     assert r.status_code == 201
     r = await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222hunt"},
+        "/auth/login",
+        data={"username": email, "password": "hunter222hunt"},
     )
     assert r.status_code in (200, 204)
 
@@ -100,17 +105,20 @@ async def test_create_list_get_delete(signup_client: AsyncClient):
 
     # LIST with rel_type filter
     r = await signup_client.get(
-        f"/cases/{case_id}/relationships", params={"rel_type": "RESOLVES_TO"},
+        f"/cases/{case_id}/relationships",
+        params={"rel_type": "RESOLVES_TO"},
     )
     assert len(r.json()) == 1
     r = await signup_client.get(
-        f"/cases/{case_id}/relationships", params={"rel_type": "OWNS"},
+        f"/cases/{case_id}/relationships",
+        params={"rel_type": "OWNS"},
     )
     assert r.json() == []
 
     # LIST with src filter
     r = await signup_client.get(
-        f"/cases/{case_id}/relationships", params={"src": src},
+        f"/cases/{case_id}/relationships",
+        params={"src": src},
     )
     assert len(r.json()) == 1
 

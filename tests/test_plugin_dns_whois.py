@@ -134,7 +134,9 @@ async def test_ns_and_mx_emit_domain_entities(monkeypatch):
         result = await plugin.query(_make_input_domain(), None, ctx)
 
     ns_entities = [
-        e for e in result.entities if e.type == EntityType.DOMAIN and e.attrs.get("role") == "nameserver"
+        e
+        for e in result.entities
+        if e.type == EntityType.DOMAIN and e.attrs.get("role") == "nameserver"
     ]
     mx_entities = [
         e for e in result.entities if e.type == EntityType.DOMAIN and e.attrs.get("role") == "mx"
@@ -145,9 +147,7 @@ async def test_ns_and_mx_emit_domain_entities(monkeypatch):
     assert {e.attrs["preference"] for e in mx_entities} == {10, 20}
 
     # All 4 produce ASSOCIATED_WITH rels
-    assoc_rels = [
-        r for r in result.relationships if r.rel_type == RelationshipType.ASSOCIATED_WITH
-    ]
+    assoc_rels = [r for r in result.relationships if r.rel_type == RelationshipType.ASSOCIATED_WITH]
     assert len(assoc_rels) == 4
 
 
@@ -163,7 +163,9 @@ async def test_rdap_404_does_not_fail(monkeypatch):
         },
     )
     plugin = DnsWhoisPlugin()
-    async with httpx.AsyncClient(transport=_rdap_transport(status=404, body=b"not found")) as client:
+    async with httpx.AsyncClient(
+        transport=_rdap_transport(status=404, body=b"not found")
+    ) as client:
         ctx = PluginContext(case_id="x", input_entity=_make_input_domain(), http_client=client)
         result = await plugin.query(_make_input_domain(), None, ctx)
 

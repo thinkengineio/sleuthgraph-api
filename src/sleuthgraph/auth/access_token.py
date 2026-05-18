@@ -19,6 +19,4 @@ class AccessToken(SQLAlchemyBaseAccessTokenTable[uuid.UUID], Base):
 
     @declared_attr
     def user_id(cls) -> Mapped[GUID]:
-        return mapped_column(
-            GUID, ForeignKey("users.id", ondelete="cascade"), nullable=False
-        )
+        return mapped_column(GUID, ForeignKey("users.id", ondelete="cascade"), nullable=False)

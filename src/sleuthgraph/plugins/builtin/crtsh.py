@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -95,7 +95,7 @@ class CrtShPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "subdomain_count": len(entities),
                     "truncated": truncated,
                     "max_subdomains": MAX_SUBDOMAINS,
@@ -105,7 +105,9 @@ class CrtShPlugin(OSINTPlugin):
         ]
 
         return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence,
+            entities=entities,
+            relationships=relationships,
+            evidence=evidence,
         )
 
     @retry(
@@ -115,13 +117,17 @@ class CrtShPlugin(OSINTPlugin):
         reraise=True,
     )
     async def _fetch(
-        self, client: httpx.AsyncClient, url: str,
+        self,
+        client: httpx.AsyncClient,
+        url: str,
     ) -> tuple[bytes, list[dict[str, Any]]]:
         """Stream the response body with a hard byte cap, then parse JSON."""
         chunks: list[bytes] = []
         total = 0
         async with client.stream(
-            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"},
+            "GET",
+            url,
+            headers={"User-Agent": "sleuthgraph/0.1"},
         ) as resp:
             if resp.status_code == 429:
                 delay = 0
@@ -133,9 +139,7 @@ class CrtShPlugin(OSINTPlugin):
                 if delay > 0:
                     await asyncio.sleep(delay)
                 # Raise a retryable error so tenacity retries the request.
-                raise httpx.TransportError(
-                    f"crt.sh 429 rate-limited; slept {delay}s"
-                )
+                raise httpx.TransportError(f"crt.sh 429 rate-limited; slept {delay}s")
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)

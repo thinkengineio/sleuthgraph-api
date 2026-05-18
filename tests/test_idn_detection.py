@@ -1,18 +1,16 @@
 """Tests for IDN / Punycode detection in entity schemas and validators."""
 
 import uuid
-from datetime import datetime, timezone
-
-import pytest
+from datetime import UTC, datetime
 
 from sleuthgraph.entities.schemas import EntityRead
 from sleuthgraph.entities.types import EntityType
 from sleuthgraph.entities.validators import is_idn_domain
 
-
 # ---------------------------------------------------------------------------
 # is_idn_domain helper
 # ---------------------------------------------------------------------------
+
 
 class TestIsIdnDomain:
     def test_plain_ascii_domain(self):
@@ -54,9 +52,10 @@ class TestIsIdnDomain:
 # EntityRead.is_idn computed field
 # ---------------------------------------------------------------------------
 
+
 class TestEntityReadIsIdn:
     def _make_entity_read(self, etype: EntityType, label: str) -> EntityRead:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return EntityRead(
             id=uuid.uuid4(),
             case_id=uuid.uuid4(),

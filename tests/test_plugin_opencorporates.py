@@ -45,22 +45,24 @@ def _transport(status=200, body=b'{"results":{"companies":[]}}'):
 
 @pytest.mark.asyncio
 async def test_org_search_yields_organization_entities():
-    body = _body([
-        {
-            "name": "Acme Inc",
-            "company_number": "1234",
-            "jurisdiction_code": "us_de",
-            "current_status": "Active",
-            "opencorporates_url": "https://opencorporates.com/companies/us_de/1234",
-        },
-        {
-            "name": "Acme LLC",
-            "company_number": "5678",
-            "jurisdiction_code": "gb",
-            "current_status": "Dissolved",
-            "opencorporates_url": "https://opencorporates.com/companies/gb/5678",
-        },
-    ])
+    body = _body(
+        [
+            {
+                "name": "Acme Inc",
+                "company_number": "1234",
+                "jurisdiction_code": "us_de",
+                "current_status": "Active",
+                "opencorporates_url": "https://opencorporates.com/companies/us_de/1234",
+            },
+            {
+                "name": "Acme LLC",
+                "company_number": "5678",
+                "jurisdiction_code": "gb",
+                "current_status": "Dissolved",
+                "opencorporates_url": "https://opencorporates.com/companies/gb/5678",
+            },
+        ]
+    )
     plugin = OpenCorporatesPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
         ent = _entity(EntityType.ORGANIZATION, "Acme")
@@ -82,14 +84,16 @@ async def test_org_search_yields_organization_entities():
 
 @pytest.mark.asyncio
 async def test_person_input_accepted():
-    body = _body([
-        {
-            "name": "Jane Doe Holdings",
-            "company_number": "1",
-            "jurisdiction_code": "us_ny",
-            "current_status": "Active",
-        },
-    ])
+    body = _body(
+        [
+            {
+                "name": "Jane Doe Holdings",
+                "company_number": "1",
+                "jurisdiction_code": "us_ny",
+                "current_status": "Active",
+            },
+        ]
+    )
     plugin = OpenCorporatesPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
         ent = _entity(EntityType.PERSON, "Jane Doe")
@@ -112,15 +116,17 @@ async def test_empty_query_returns_empty_result():
 
 @pytest.mark.asyncio
 async def test_cap_at_max_matches():
-    body = _body([
-        {
-            "name": f"Co {i}",
-            "company_number": str(i),
-            "jurisdiction_code": "us_de",
-            "current_status": "Active",
-        }
-        for i in range(MAX_MATCHES + 5)
-    ])
+    body = _body(
+        [
+            {
+                "name": f"Co {i}",
+                "company_number": str(i),
+                "jurisdiction_code": "us_de",
+                "current_status": "Active",
+            }
+            for i in range(MAX_MATCHES + 5)
+        ]
+    )
     plugin = OpenCorporatesPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
         ent = _entity(EntityType.ORGANIZATION, "Co")

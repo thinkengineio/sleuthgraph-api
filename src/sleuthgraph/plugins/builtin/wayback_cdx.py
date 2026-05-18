@@ -11,7 +11,7 @@ Dispatched async (CDX can take tens of seconds on popular domains).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -134,7 +134,7 @@ class WaybackCdxPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "snapshot_count": len(entities),
                     "truncated": truncated,
                     "skipped_too_long": skipped_too_long,
@@ -146,9 +146,7 @@ class WaybackCdxPlugin(OSINTPlugin):
             )
         ]
 
-        return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence
-        )
+        return QueryResult(entities=entities, relationships=relationships, evidence=evidence)
 
     @retry(
         stop=(stop_after_attempt(3) | stop_after_delay(30)),
@@ -156,15 +154,11 @@ class WaybackCdxPlugin(OSINTPlugin):
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch(
-        self, client: httpx.AsyncClient, url: str
-    ) -> tuple[bytes, list[list[str]]]:
+    async def _fetch(self, client: httpx.AsyncClient, url: str) -> tuple[bytes, list[list[str]]]:
         """Streaming GET with 10 MiB cap. Returns (raw, parsed_rows_excluding_header)."""
         chunks: list[bytes] = []
         total = 0
-        async with client.stream(
-            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"}
-        ) as resp:
+        async with client.stream("GET", url, headers={"User-Agent": "sleuthgraph/0.1"}) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)
@@ -211,8 +205,7 @@ class WaybackCdxPlugin(OSINTPlugin):
                     entry["last_seen"] = timestamp
 
         out = [
-            (url, e["first_seen"], e["last_seen"], e["status_code"])
-            for url, e in by_url.items()
+            (url, e["first_seen"], e["last_seen"], e["status_code"]) for url, e in by_url.items()
         ]
         out.sort(key=lambda t: t[1])
         return out

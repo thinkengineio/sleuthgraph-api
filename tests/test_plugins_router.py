@@ -32,7 +32,8 @@ class _FakePlugin(OSINTPlugin):
             ],
             relationships=[
                 RelationshipProposal(
-                    src={"ref": "a"}, dst={"input": True},
+                    src={"ref": "a"},
+                    dst={"input": True},
                     rel_type=RelationshipType.SUBDOMAIN_OF,
                 ),
             ],
@@ -43,20 +44,33 @@ class _FakePlugin(OSINTPlugin):
 
 
 class _FakeStorage:
-    def __init__(self): self._b = {}
-    async def put(self, k, d, content_type="application/octet-stream"): self._b[k] = d
-    async def get(self, k): return self._b[k]
-    async def presign_get(self, k, expires_in=300): return f"http://fake/{k}"
-    async def exists(self, k): return k in self._b
+    def __init__(self):
+        self._b = {}
+
+    async def put(self, k, d, content_type="application/octet-stream"):
+        self._b[k] = d
+
+    async def get(self, k):
+        return self._b[k]
+
+    async def presign_get(self, k, expires_in=300):
+        return f"http://fake/{k}"
+
+    async def exists(self, k):
+        return k in self._b
 
 
 @pytest.fixture(autouse=True)
 def _patch_age(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)

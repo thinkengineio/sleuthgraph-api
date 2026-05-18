@@ -37,7 +37,9 @@ router = APIRouter(prefix="/cases/{case_id}/evidence", tags=["evidence"])
 
 
 async def _verify_case_ownership(
-    case_id: uuid.UUID, user: User, session: AsyncSession,
+    case_id: uuid.UUID,
+    user: User,
+    session: AsyncSession,
 ) -> None:
     """Raise 404 if case doesn't exist or isn't owned by user (no-leak invariant)."""
     case_repo = CaseRepository(session)
@@ -54,7 +56,9 @@ def _build_repo(
 
 
 @router.post(
-    "", response_model=EvidenceRead, status_code=status.HTTP_201_CREATED,
+    "",
+    response_model=EvidenceRead,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_evidence(
     case_id: uuid.UUID,
@@ -78,7 +82,7 @@ async def create_evidence(
     try:
         data = EvidenceCreate.model_validate_json(metadata)
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"invalid metadata: {e}")
+        raise HTTPException(status_code=422, detail=f"invalid metadata: {e}") from None
 
     # Bounded read: request one byte beyond the limit so we can detect overflow
     # without buffering the full malicious payload.
@@ -90,7 +94,11 @@ async def create_evidence(
         )
 
     ev = await repo.create(
-        case_id, user.id, data, payload, file.content_type,
+        case_id,
+        user.id,
+        data,
+        payload,
+        file.content_type,
     )
     return EvidenceRead.model_validate(ev)
 
@@ -108,12 +116,17 @@ async def list_evidence(
 ) -> EvidenceList:
     await _verify_case_ownership(case_id, user, session)
     items, total = await repo.list_for_case(
-        case_id, entity_id=entity_id, source_plugin=source_plugin,
-        limit=limit, offset=offset,
+        case_id,
+        entity_id=entity_id,
+        source_plugin=source_plugin,
+        limit=limit,
+        offset=offset,
     )
     return EvidenceList(
         items=[EvidenceRead.model_validate(e) for e in items],
-        total=total, limit=limit, offset=offset,
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

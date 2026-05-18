@@ -14,5 +14,5 @@ class BYOKPlugin(OSINTPlugin):
     requires_credentials: bool = True
 
     # Override in subclass:
-    credential_name: str = ""   # e.g. "virustotal", "shodan"
-    credential_url: str = ""    # e.g. "https://virustotal.com/api"
+    credential_name: str = ""  # e.g. "virustotal", "shodan"
+    credential_url: str = ""  # e.g. "https://virustotal.com/api"

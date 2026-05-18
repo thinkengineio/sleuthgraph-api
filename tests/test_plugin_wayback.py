@@ -53,11 +53,13 @@ def _transport(status=200, body=b"[]"):
 
 @pytest.mark.asyncio
 async def test_domain_with_three_snapshots_produces_three_url_entities():
-    body = _cdx_body([
-        ["20200101120000", "https://example.com/", "200"],
-        ["20210202120000", "https://example.com/a", "200"],
-        ["20220303120000", "https://example.com/b", "404"],
-    ])
+    body = _cdx_body(
+        [
+            ["20200101120000", "https://example.com/", "200"],
+            ["20210202120000", "https://example.com/a", "200"],
+            ["20220303120000", "https://example.com/b", "404"],
+        ]
+    )
     plugin = WaybackCdxPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
         ctx = PluginContext(case_id="x", input_entity=_make_domain(), http_client=client)
@@ -91,7 +93,10 @@ async def test_empty_cdx_is_no_entities_but_evidence_present():
 
 @pytest.mark.asyncio
 async def test_truncation_marker_when_cap_hit():
-    rows = [[f"202001{i:02d}120000", f"https://example.com/p{i}", "200"] for i in range(MAX_SNAPSHOTS + 5)]
+    rows = [
+        [f"202001{i:02d}120000", f"https://example.com/p{i}", "200"]
+        for i in range(MAX_SNAPSHOTS + 5)
+    ]
     body = _cdx_body(rows)
     plugin = WaybackCdxPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
@@ -125,9 +130,11 @@ async def test_http_503_not_retried_returns_empty_gracefully():
 
 @pytest.mark.asyncio
 async def test_url_input_accepted():
-    body = _cdx_body([
-        ["20200101120000", "https://example.com/page", "200"],
-    ])
+    body = _cdx_body(
+        [
+            ["20200101120000", "https://example.com/page", "200"],
+        ]
+    )
     plugin = WaybackCdxPlugin()
     async with httpx.AsyncClient(transport=_transport(body=body)) as client:
         ctx = PluginContext(case_id="x", input_entity=_make_url(), http_client=client)

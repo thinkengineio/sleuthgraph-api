@@ -26,6 +26,7 @@ def test_subkeys_differ_by_purpose():
 
 def test_subkeys_differ_from_master_secret():
     from sleuthgraph.config import get_settings
+
     _reset_caches()
     master = get_settings().secret_key
     assert jwt_signing_key() != master

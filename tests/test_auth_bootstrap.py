@@ -31,9 +31,7 @@ async def test_bootstrap_creates_admin(db_session, monkeypatch):
 
     await bootstrap_admin(session=db_session)
 
-    result = await db_session.execute(
-        select(User).where(User.email == "admin@example.com")
-    )
+    result = await db_session.execute(select(User).where(User.email == "admin@example.com"))
     user = result.scalar_one()
     assert user.is_superuser is True
     assert user.is_active is True
@@ -49,8 +47,6 @@ async def test_bootstrap_idempotent(db_session, monkeypatch):
     await bootstrap_admin(session=db_session)  # second call must not raise
 
     result = await db_session.execute(
-        select(func.count())
-        .select_from(User)
-        .where(User.email == "admin@example.com")
+        select(func.count()).select_from(User).where(User.email == "admin@example.com")
     )
     assert result.scalar() == 1

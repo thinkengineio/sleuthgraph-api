@@ -115,7 +115,7 @@ class OSINTPlugin(ABC):
     @abstractmethod
     async def query(
         self,
-        input_entity: "Entity",
+        input_entity: Entity,
         credentials: dict | None,
         context: PluginContext,
     ) -> QueryResult:

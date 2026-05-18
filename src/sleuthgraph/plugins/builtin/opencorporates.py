@@ -12,7 +12,7 @@ No auth required for the free-tier search endpoint.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -107,7 +107,7 @@ class OpenCorporatesPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "match_count": len(entities),
                     "truncated": truncated,
                     "max_matches": MAX_MATCHES,
@@ -131,9 +131,7 @@ class OpenCorporatesPlugin(OSINTPlugin):
         """Streaming GET with 10 MiB cap. Returns (raw, companies_list)."""
         chunks: list[bytes] = []
         total = 0
-        async with client.stream(
-            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"}
-        ) as resp:
+        async with client.stream("GET", url, headers={"User-Agent": "sleuthgraph/0.1"}) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)

@@ -30,9 +30,13 @@ class _FakeStorage:
 def _patch_age_for_sqlite(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -43,6 +47,7 @@ def _patch_age_for_sqlite(monkeypatch, request):
 async def signup_with_storage(signup_client):
     """Attach FakeStorage to the exported router's DI."""
     from sleuthgraph.evidence.deps import get_storage as _get_storage
+
     app = signup_client._test_app  # type: ignore[attr-defined]
     fake = _FakeStorage()
     app.dependency_overrides[_get_storage] = lambda: fake
@@ -58,7 +63,8 @@ async def _login(client, email):
         json={"email": email, "password": "hunter222hunt", "name": email.split("@")[0]},
     )
     await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222hunt"},
+        "/auth/login",
+        data={"username": email, "password": "hunter222hunt"},
     )
 
 
@@ -71,13 +77,16 @@ async def _seed_evidence_directly(session, case_id, n=3):
     """Insert n evidence rows by hitting the underlying repo — fewer moving parts than multipart POSTs."""
     from sleuthgraph.evidence.repository import EvidenceRepository
     from sleuthgraph.evidence.schemas import EvidenceCreate
+
     storage = _FakeStorage()
     repo = EvidenceRepository(session, storage)
     for i in range(n):
         await repo.create(
-            uuid.UUID(case_id), None,
+            uuid.UUID(case_id),
+            None,
             EvidenceCreate(query=f"q{i}", source_plugin="manual"),
-            f"body-{i}".encode(), "text/plain",
+            f"body-{i}".encode(),
+            "text/plain",
         )
     return storage
 
@@ -114,6 +123,7 @@ async def test_export_json_with_items(signup_with_storage):
     # To avoid depending on 4.6, seed directly via the repo by grabbing a session.
     # But we only have httpx here, so use multipart if possible.
     import io as _io
+
     for i in range(3):
         r = await signup_client.post(
             f"/cases/{case_id}/evidence",
@@ -145,9 +155,15 @@ async def test_export_csv_empty(signup_with_storage):
     rows = list(reader)
     assert len(rows) == 1
     assert rows[0] == [
-        "id", "timestamp", "source_plugin", "query",
-        "response_hash", "response_bytes", "response_content_type",
-        "entity_id", "reproducibility_spec",
+        "id",
+        "timestamp",
+        "source_plugin",
+        "query",
+        "response_hash",
+        "response_bytes",
+        "response_content_type",
+        "entity_id",
+        "reproducibility_spec",
     ]
     # Content-Disposition attachment
     assert "attachment" in r.headers.get("content-disposition", "")

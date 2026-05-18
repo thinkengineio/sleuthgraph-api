@@ -37,9 +37,11 @@ class PluginRunRepository:
         total = (await self.session.execute(count_q)).scalar_one()
 
         items_q = (
-            select(PluginRun).where(*filters)
+            select(PluginRun)
+            .where(*filters)
             .order_by(PluginRun.started_at.desc())
-            .limit(limit).offset(offset)
+            .limit(limit)
+            .offset(offset)
         )
         items = list((await self.session.execute(items_q)).scalars())
         return items, total

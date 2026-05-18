@@ -10,9 +10,13 @@ from httpx import AsyncClient
 def _patch_age_for_sqlite(monkeypatch, request):
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -25,7 +29,8 @@ async def _login(client: AsyncClient, email: str):
         json={"email": email, "password": "hunter222hunt", "name": email.split("@")[0]},
     )
     await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222hunt"},
+        "/auth/login",
+        data={"username": email, "password": "hunter222hunt"},
     )
 
 
@@ -91,7 +96,9 @@ async def test_case_with_entities_and_relationships(signup_client: AsyncClient):
 
     # Verify edge shape
     e = body["edges"][0]
-    assert {"id", "source", "target", "rel_type", "confidence", "source_plugin", "attrs"} == set(e.keys())
+    assert {"id", "source", "target", "rel_type", "confidence", "source_plugin", "attrs"} == set(
+        e.keys()
+    )
 
 
 @pytest.mark.asyncio

@@ -12,7 +12,7 @@ API docs: https://docs.aleph.occrp.org/developers/api/
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -76,7 +76,7 @@ class AlephOccrpPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "hit_count": hit_count,
                     "matched": hit_count > 0,
                     "fetch_status": "ok",
@@ -92,21 +92,15 @@ class AlephOccrpPlugin(OSINTPlugin):
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch(
-        self, client: httpx.AsyncClient, url: str
-    ) -> tuple[bytes, int]:
+    async def _fetch(self, client: httpx.AsyncClient, url: str) -> tuple[bytes, int]:
         chunks: list[bytes] = []
         total = 0
-        async with client.stream(
-            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"}
-        ) as resp:
+        async with client.stream("GET", url, headers={"User-Agent": "sleuthgraph/0.1"}) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)
                 if total > MAX_RESPONSE_BYTES:
-                    raise httpx.HTTPError(
-                        f"aleph response exceeded {MAX_RESPONSE_BYTES} bytes"
-                    )
+                    raise httpx.HTTPError(f"aleph response exceeded {MAX_RESPONSE_BYTES} bytes")
                 chunks.append(chunk)
         raw = b"".join(chunks)
         try:

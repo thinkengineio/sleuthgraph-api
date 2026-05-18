@@ -1,7 +1,7 @@
 """Case schema tests."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -36,7 +36,7 @@ def test_case_create_rejects_overlong_name():
 
 
 def test_case_read_shape():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cr = CaseRead(
         id=uuid.uuid4(),
         owner_id=uuid.uuid4(),
@@ -51,7 +51,7 @@ def test_case_read_shape():
 
 
 def test_case_read_owner_id_nullable():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cr = CaseRead(
         id=uuid.uuid4(),
         owner_id=None,

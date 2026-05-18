@@ -13,7 +13,6 @@ from sleuthgraph.plugins.base import PluginContext
 from sleuthgraph.plugins.builtin.virustotal import MAX_ENTITIES, VirusTotalPlugin
 from sleuthgraph.relationships.types import RelationshipType
 
-
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 CREDS = {"api_key": "test-vt-key-abc123"}
 
@@ -44,6 +43,7 @@ def _transport(status: int = 200, body: bytes | None = None, fixture: str | None
 
 
 # -- Domain tests --
+
 
 @pytest.mark.asyncio
 async def test_domain_extracts_ips_from_dns_records():
@@ -93,9 +93,7 @@ async def test_domain_resolves_to_relationships():
         ctx = PluginContext(case_id="x", input_entity=ent, http_client=client)
         result = await plugin.query(ent, CREDS, ctx)
 
-    resolves_rels = [
-        r for r in result.relationships if r.rel_type == RelationshipType.RESOLVES_TO
-    ]
+    resolves_rels = [r for r in result.relationships if r.rel_type == RelationshipType.RESOLVES_TO]
     assert len(resolves_rels) == 2  # one per IP (A + AAAA)
     for r in resolves_rels:
         assert r.src == {"input": True}
@@ -120,6 +118,7 @@ async def test_domain_evidence_carries_raw_response():
 
 
 # -- IP tests --
+
 
 @pytest.mark.asyncio
 async def test_ip_extracts_domains_from_certificate():
@@ -157,6 +156,7 @@ async def test_ip_evidence_has_correct_query():
 
 # -- URL tests --
 
+
 @pytest.mark.asyncio
 async def test_url_returns_evidence_only():
     """URL analysis produces evidence but no new entities."""
@@ -176,6 +176,7 @@ async def test_url_returns_evidence_only():
 
 
 # -- Error handling --
+
 
 @pytest.mark.asyncio
 async def test_http_error_not_retried():
@@ -219,6 +220,7 @@ async def test_http_403_not_retried():
 
 # -- Empty results --
 
+
 @pytest.mark.asyncio
 async def test_empty_response_produces_no_entities():
     plugin = VirusTotalPlugin()
@@ -249,6 +251,7 @@ async def test_empty_label_returns_empty_result():
 
 # -- Credential access --
 
+
 @pytest.mark.asyncio
 async def test_credentials_api_key_used_in_header():
     """Verify the plugin reads api_key from credentials dict and passes it as x-apikey."""
@@ -270,14 +273,14 @@ async def test_credentials_api_key_used_in_header():
 
 # -- Cap at MAX_ENTITIES --
 
+
 @pytest.mark.asyncio
 async def test_cap_at_max_entities():
     """Entities are capped at MAX_ENTITIES and evidence marks truncated."""
     plugin = VirusTotalPlugin()
     # Build a response with more IPs than the cap
     dns_records = [
-        {"type": "A", "value": f"10.0.{i // 256}.{i % 256}"}
-        for i in range(MAX_ENTITIES + 10)
+        {"type": "A", "value": f"10.0.{i // 256}.{i % 256}"} for i in range(MAX_ENTITIES + 10)
     ]
     data = {"data": {"attributes": {"last_dns_records": dns_records}}}
     transport = _transport(body=json.dumps(data).encode())
@@ -293,6 +296,7 @@ async def test_cap_at_max_entities():
 # -- Plugin class attributes --
 
 # -- Input validation (path injection prevention) --
+
 
 @pytest.mark.asyncio
 async def test_rejects_injected_path_in_domain():

@@ -23,9 +23,15 @@ def build_key(case_id: str, sha256_hex: str) -> str:
 class EvidenceStorage:
     """Thin async facade for MinIO/S3. Config from app settings."""
 
-    def __init__(self, *, endpoint: str | None = None, access_key: str | None = None,
-                 secret_key: str | None = None, bucket: str | None = None,
-                 region: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        endpoint: str | None = None,
+        access_key: str | None = None,
+        secret_key: str | None = None,
+        bucket: str | None = None,
+        region: str | None = None,
+    ) -> None:
         s = get_settings()
         self.endpoint = endpoint or s.s3_endpoint
         self.access_key = access_key or s.s3_access_key
@@ -35,24 +41,24 @@ class EvidenceStorage:
         self._session = aioboto3.Session()
 
     def _client_kwargs(self) -> dict:
-        return dict(
-            service_name="s3",
-            endpoint_url=self.endpoint,
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_key,
-            region_name=self.region,
+        return {
+            "service_name": "s3",
+            "endpoint_url": self.endpoint,
+            "aws_access_key_id": self.access_key,
+            "aws_secret_access_key": self.secret_key,
+            "region_name": self.region,
             # path-style for MinIO + OCI S3-compat.
             # request/response checksum "when_required" stops boto3 from
             # emitting aws-chunked + x-amz-trailer-checksum headers. OCI
             # Object Storage rejects those with MissingContentLength; also
             # aiohttp raises when ContentLength and Transfer-Encoding:
             # chunked are both set.
-            config=Config(
+            "config": Config(
                 s3={"addressing_style": "path"},
                 request_checksum_calculation="when_required",
                 response_checksum_validation="when_required",
             ),
-        )
+        }
 
     async def exists(self, key: str) -> bool:
         async with self._session.client(**self._client_kwargs()) as client:
@@ -65,7 +71,9 @@ class EvidenceStorage:
                     return False
                 raise
 
-    async def put(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+    async def put(
+        self, key: str, data: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
         """Idempotent upload. Skip network if object with same size exists."""
         async with self._session.client(**self._client_kwargs()) as client:
             # Short-circuit for already-present blobs.

@@ -23,15 +23,21 @@ class Evidence(Base):
     __tablename__ = "evidence"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        GUID(), primary_key=True, default=uuid.uuid4,
+        GUID(),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     case_id: Mapped[uuid.UUID] = mapped_column(
-        GUID(), ForeignKey("cases.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        GUID(),
+        ForeignKey("cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     entity_id: Mapped[uuid.UUID | None] = mapped_column(
-        GUID(), ForeignKey("entities.id", ondelete="SET NULL"),
-        nullable=True, index=True,
+        GUID(),
+        ForeignKey("entities.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     source_plugin: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     query: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -40,9 +46,13 @@ class Evidence(Base):
     response_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     response_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     reproducibility_spec: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
+        GUID(),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )

@@ -5,10 +5,10 @@ These are the 8 MVP entity types. Stored as VARCHAR(32) on the Entity model
 a string-value change — no migration.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     PERSON = "PERSON"
     ORGANIZATION = "ORGANIZATION"
     DOMAIN = "DOMAIN"

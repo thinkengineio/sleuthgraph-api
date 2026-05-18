@@ -49,9 +49,7 @@ async def test_concurrent_get_pool_creates_exactly_one_pool(monkeypatch):
         enqueue._get_pool(),
     )
 
-    assert call_count == 1, (
-        f"create_pool called {call_count}x — asyncio.Lock did not bound init"
-    )
+    assert call_count == 1, f"create_pool called {call_count}x — asyncio.Lock did not bound init"
     assert a is b is c, "concurrent callers should share the single pool instance"
 
 

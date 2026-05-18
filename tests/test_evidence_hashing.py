@@ -1,7 +1,6 @@
 """Determinism + correctness of canonical SHA-256 hashing."""
 
 import hashlib
-import pytest
 
 from sleuthgraph.evidence.hashing import (
     canonical_json_bytes,
@@ -18,10 +17,7 @@ def test_hash_bytes_matches_hashlib():
 
 def test_hash_bytes_empty():
     # Known SHA-256 of empty input
-    assert hash_bytes(b"") == (
-        "e3b0c44298fc1c149afbf4c8996fb924"
-        "27ae41e4649b934ca495991b7852b855"
-    )
+    assert hash_bytes(b"") == ("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
 
 def test_canonical_json_key_order_invariant():

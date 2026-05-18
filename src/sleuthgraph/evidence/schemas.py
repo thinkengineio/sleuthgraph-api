@@ -21,6 +21,7 @@ class EvidenceCreate(BaseModel):
     Server computes response_hash, response_uri, response_bytes, timestamp.
     Client only provides what the evidence is ABOUT.
     """
+
     entity_id: uuid.UUID | None = None
     source_plugin: str = Field(default="manual", min_length=1, max_length=96)
     query: str = Field(min_length=1, max_length=1024)
@@ -44,6 +45,7 @@ class EvidenceCreate(BaseModel):
 
 class EvidenceRead(BaseModel):
     """Evidence record as persisted (read-only from client perspective)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -64,6 +66,7 @@ class EvidenceRead(BaseModel):
 
 class EvidenceList(BaseModel):
     """Paginated shell — `total` matters for audit ('ledger has N records')."""
+
     items: list[EvidenceRead]
     total: int
     limit: int

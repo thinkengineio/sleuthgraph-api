@@ -1,7 +1,7 @@
 """AGE edge upsert/delete: requires live postgres + AGE."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
@@ -21,23 +21,41 @@ async def _seed_case_and_two_entities(session):
     """Insert one user, one case, two entities with AGE vertices."""
     user_id = uuid.uuid4()
     case_id = uuid.uuid4()
-    session.add(User(
-        id=user_id, email=f"u-{user_id}@x.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
-    ))
+    session.add(
+        User(
+            id=user_id,
+            email=f"u-{user_id}@x.com",
+            hashed_password="x",
+            is_active=True,
+            is_superuser=False,
+            is_verified=False,
+        )
+    )
     session.add(Case(id=case_id, owner_id=user_id, name="T", tags=[]))
     await session.flush()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     e1 = Entity(
-        id=uuid.uuid4(), case_id=case_id, type=EntityType.DOMAIN.value,
-        label="src.example", attrs={}, confidence=1.0,
-        created_by=user_id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case_id,
+        type=EntityType.DOMAIN.value,
+        label="src.example",
+        attrs={},
+        confidence=1.0,
+        created_by=user_id,
+        created_at=now,
+        updated_at=now,
     )
     e2 = Entity(
-        id=uuid.uuid4(), case_id=case_id, type=EntityType.IP_ADDRESS.value,
-        label="203.0.113.5", attrs={}, confidence=1.0,
-        created_by=user_id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case_id,
+        type=EntityType.IP_ADDRESS.value,
+        label="203.0.113.5",
+        attrs={},
+        confidence=1.0,
+        created_by=user_id,
+        created_at=now,
+        updated_at=now,
     )
     session.add_all([e1, e2])
     await session.flush()
@@ -48,7 +66,7 @@ async def _seed_case_and_two_entities(session):
 
 
 def _make_rel(case_id, src_id, dst_id, rel_type=RelationshipType.RESOLVES_TO):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return Relationship(
         id=uuid.uuid4(),
         case_id=case_id,
@@ -64,11 +82,13 @@ def _make_rel(case_id, src_id, dst_id, rel_type=RelationshipType.RESOLVES_TO):
 
 async def _count_edges_with_id(session, rel_id):
     await session.execute(text('SET search_path = ag_catalog, "$user", public;'))
-    r = await session.execute(text(
-        f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
-        f"MATCH ()-[r {{id: '{rel_id}'}}]->() RETURN count(r) AS c "
-        f"$$) AS (c agtype);"
-    ))
+    r = await session.execute(
+        text(
+            f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
+            f"MATCH ()-[r {{id: '{rel_id}'}}]->() RETURN count(r) AS c "
+            f"$$) AS (c agtype);"
+        )
+    )
     row = r.first()
     return int(str(row[0]).split("::")[0])
 
@@ -143,7 +163,7 @@ async def test_dollar_quote_in_source_plugin_does_not_inject(postgres_age_sessio
     is unique per call, so embedded $$ in string properties is inert.
     """
     case_id, e1, e2, _ = await _seed_case_and_two_entities(postgres_age_session)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rel = Relationship(
         id=uuid.uuid4(),
         case_id=case_id,
@@ -165,6 +185,7 @@ async def test_dollar_quote_in_source_plugin_does_not_inject(postgres_age_sessio
 
     # The users table still exists — confirms no DDL injection ran.
     from sqlalchemy import text as _t
+
     r = await postgres_age_session.execute(_t("SELECT count(*) FROM users"))
     assert r.scalar() >= 0
 

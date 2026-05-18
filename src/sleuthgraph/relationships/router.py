@@ -19,12 +19,15 @@ from sleuthgraph.relationships.schemas import (
 )
 
 router = APIRouter(
-    prefix="/cases/{case_id}/relationships", tags=["relationships"],
+    prefix="/cases/{case_id}/relationships",
+    tags=["relationships"],
 )
 
 
 async def _verify_case_ownership(
-    case_id: uuid.UUID, user: User, session: AsyncSession,
+    case_id: uuid.UUID,
+    user: User,
+    session: AsyncSession,
 ) -> None:
     case_repo = CaseRepository(session)
     case = await case_repo.get(case_id, user.id)
@@ -44,7 +47,7 @@ async def create_relationship(
     try:
         rel = await repo.create(case_id, user.id, data)
     except EndpointNotInCaseError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from None
     return RelationshipRead.model_validate(rel)
 
 
@@ -62,7 +65,12 @@ async def list_relationships(
     await _verify_case_ownership(case_id, user, session)
     repo = RelationshipRepository(session)
     items = await repo.list_for_case(
-        case_id, rel_type=rel_type, src=src, dst=dst, limit=limit, offset=offset,
+        case_id,
+        rel_type=rel_type,
+        src=src,
+        dst=dst,
+        limit=limit,
+        offset=offset,
     )
     return [RelationshipRead.model_validate(r) for r in items]
 

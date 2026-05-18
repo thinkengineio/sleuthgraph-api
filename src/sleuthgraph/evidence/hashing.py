@@ -6,6 +6,7 @@ JSON payloads   → serialize to canonical JSON (sorted keys, no whitespace,
                   gets STORED to MinIO, so downstream auditors can recompute
                   the hash byte-for-byte from the stored blob.
 """
+
 import hashlib
 import json
 from typing import Any
@@ -22,7 +23,9 @@ def canonical_json_bytes(obj: Any) -> bytes:
     The same dict with different key insertion order yields identical bytes.
     """
     return json.dumps(
-        obj, sort_keys=True, separators=(",", ":"),
+        obj,
+        sort_keys=True,
+        separators=(",", ":"),
         ensure_ascii=False,
     ).encode("utf-8")
 

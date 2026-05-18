@@ -19,7 +19,9 @@ class Relationship(Base):
     __tablename__ = "relationships"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        GUID(), primary_key=True, default=uuid.uuid4,
+        GUID(),
+        primary_key=True,
+        default=uuid.uuid4,
     )
     case_id: Mapped[uuid.UUID] = mapped_column(
         GUID(),
@@ -49,8 +51,10 @@ class Relationship(Base):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )

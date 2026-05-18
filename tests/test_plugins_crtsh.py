@@ -13,7 +13,6 @@ from sleuthgraph.plugins.base import PluginContext
 from sleuthgraph.plugins.builtin.crtsh import CrtShPlugin
 from sleuthgraph.relationships.types import RelationshipType
 
-
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "crtsh_example.json"
 
 
@@ -48,7 +47,12 @@ async def test_extracts_subdomains_from_fixture():
         result = await plugin.query(_make_input_domain(), None, ctx)
 
     labels = {e.label for e in result.entities}
-    assert labels == {"www.example.com", "api.example.com", "dev.example.com", "staging.example.com"}
+    assert labels == {
+        "www.example.com",
+        "api.example.com",
+        "dev.example.com",
+        "staging.example.com",
+    }
 
 
 @pytest.mark.asyncio
@@ -155,7 +159,7 @@ async def test_http_500_not_retried():
 async def test_response_body_over_10mb_aborts():
     """A response larger than 10 MiB raises httpx.HTTPError after tenacity retries."""
     plugin = CrtShPlugin()
-    huge_body = b"[" + (b'{"name_value":"x.example.com"},' * 500_000) + b'{}' + b"]"
+    huge_body = b"[" + (b'{"name_value":"x.example.com"},' * 500_000) + b"{}" + b"]"
     assert len(huge_body) > 10 * 1024 * 1024
 
     def handler(request):

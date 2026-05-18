@@ -5,8 +5,16 @@ from sleuthgraph.cases.models import Case
 
 def test_case_columns():
     cols = {c.name for c in Case.__table__.columns}
-    required = {"id", "owner_id", "name", "status", "tags",
-                "created_at", "updated_at", "deleted_at"}
+    required = {
+        "id",
+        "owner_id",
+        "name",
+        "status",
+        "tags",
+        "created_at",
+        "updated_at",
+        "deleted_at",
+    }
     assert required <= cols, f"Missing: {required - cols}"
 
 

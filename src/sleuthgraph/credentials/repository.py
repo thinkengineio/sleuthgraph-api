@@ -100,12 +100,9 @@ async def delete_credential(
     plugin_name: str,
 ) -> bool:
     """Delete a credential. Returns True if a row was deleted."""
-    stmt = (
-        delete(Credential)
-        .where(
-            Credential.user_id == user_id,
-            Credential.plugin_name == plugin_name,
-        )
+    stmt = delete(Credential).where(
+        Credential.user_id == user_id,
+        Credential.plugin_name == plugin_name,
     )
     result = await session.execute(stmt)
     return result.rowcount > 0

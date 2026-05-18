@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -117,12 +117,11 @@ class PluginRunner:
 
         # Validate input entity type is accepted
         from sleuthgraph.entities.types import EntityType
+
         try:
             input_type = EntityType(input_entity.type)
         except ValueError:
-            raise PluginTypeError(
-                f"unknown entity type: {input_entity.type}"
-            )
+            raise PluginTypeError(f"unknown entity type: {input_entity.type}") from None
         if input_type not in plugin.entity_types_accepted:
             raise PluginTypeError(
                 f"plugin {plugin.name} does not accept entity type {input_entity.type}"
@@ -153,16 +152,23 @@ class PluginRunner:
             # Credential resolution is inside the try block so a missing
             # credential produces a proper failed audit row.
             credentials = await self._resolve_credentials(
-                plugin, credentials, created_by,
+                plugin,
+                credentials,
+                created_by,
             )
             return await self._execute_plugin(
-                plugin, run, case_id, input_entity, created_by, credentials,
+                plugin,
+                run,
+                case_id,
+                input_entity,
+                created_by,
+                credentials,
             )
         except Exception as e:
             log.exception("plugin %s failed on case %s", plugin.name, case_id)
             # Ensure audit row captures the failure
             run.status = "failed"
-            run.finished_at = datetime.now(timezone.utc)
+            run.finished_at = datetime.now(UTC)
             # Do NOT persist str(e) — use a sanitized taxonomy label only.
             run.error_message = _classify_error(e)
             try:
@@ -209,7 +215,9 @@ class PluginRunner:
                 http_client=http_client,
             )
             result: QueryResult = await plugin.query(
-                input_entity, credentials, ctx,
+                input_entity,
+                credentials,
+                ctx,
             )
 
         total = len(result.entities) + len(result.relationships) + len(result.evidence)
@@ -219,12 +227,16 @@ class PluginRunner:
             )
 
         entities_created, rels_created, evidence_created = await self._persist(
-            case_id, input_entity, created_by, plugin.full_name, result,
+            case_id,
+            input_entity,
+            created_by,
+            plugin.full_name,
+            result,
         )
 
         # Audit row: succeeded
         run.status = "succeeded"
-        run.finished_at = datetime.now(timezone.utc)
+        run.finished_at = datetime.now(UTC)
         run.entities_created_count = len(entities_created)
         run.relationships_created_count = len(rels_created)
         run.evidence_count = len(evidence_created)
@@ -257,7 +269,8 @@ class PluginRunner:
         entities_created: list[Entity] = []
         for ep in result.entities:
             entity, was_created = await entity_repo.get_or_create(
-                case_id, created_by,
+                case_id,
+                created_by,
                 EntityCreate(
                     type=ep.type,
                     label=ep.label,
@@ -275,7 +288,8 @@ class PluginRunner:
             src_entity = self._resolve_ref(rp.src, input_entity, ref_to_entity)
             dst_entity = self._resolve_ref(rp.dst, input_entity, ref_to_entity)
             rel, was_created = await rel_repo.create_if_not_exists(
-                case_id, created_by,
+                case_id,
+                created_by,
                 RelationshipCreate(
                     src_entity_id=src_entity.id,
                     dst_entity_id=dst_entity.id,
@@ -293,7 +307,8 @@ class PluginRunner:
         for evp in result.evidence:
             link_entity_id = input_entity.id if evp.link_to_input else None
             ev = await evidence_repo.create(
-                case_id, created_by,
+                case_id,
+                created_by,
                 EvidenceCreate(
                     entity_id=link_entity_id,
                     source_plugin=plugin_full_name,
@@ -322,9 +337,7 @@ class PluginRunner:
         if "ref" in ref:
             ref_key = ref["ref"]
             if ref_key not in ref_to_entity:
-                raise PluginExecutionError(
-                    f"proposal references unknown entity ref: {ref_key!r}"
-                )
+                raise PluginExecutionError(f"proposal references unknown entity ref: {ref_key!r}")
             return ref_to_entity[ref_key]
         raise PluginExecutionError(
             f"relationship endpoint must have 'input' or 'ref' key, got: {ref}"

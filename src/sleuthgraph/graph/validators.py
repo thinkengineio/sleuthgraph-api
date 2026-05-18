@@ -31,13 +31,10 @@ def _validate_attrs(value: dict) -> dict:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 if not isinstance(k, str):
-                    raise ValueError(
-                        f"attrs key must be string, got {type(k).__name__}"
-                    )
+                    raise ValueError(f"attrs key must be string, got {type(k).__name__}")
                 if not _KEY_RE.match(k):
                     raise ValueError(
-                        f"attrs key {k!r} does not match "
-                        f"^[A-Za-z_][A-Za-z0-9_]{{0,63}}$"
+                        f"attrs key {k!r} does not match ^[A-Za-z_][A-Za-z0-9_]{{0,63}}$"
                     )
                 _walk(v, depth + 1)
         elif isinstance(obj, list):
@@ -49,8 +46,6 @@ def _validate_attrs(value: dict) -> dict:
 
     size = len(json.dumps(value).encode("utf-8"))
     if size > _MAX_BYTES:
-        raise ValueError(
-            f"attrs serialized size {size} bytes exceeds limit of {_MAX_BYTES} bytes"
-        )
+        raise ValueError(f"attrs serialized size {size} bytes exceeds limit of {_MAX_BYTES} bytes")
 
     return value

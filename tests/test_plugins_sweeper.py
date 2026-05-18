@@ -1,7 +1,7 @@
 """Tests for the stuck-running PluginRun sweeper."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -25,8 +25,12 @@ async def sqlite_db(test_engine):
 async def seeded(sqlite_db):
     """Create user + case + entity for PluginRun FK requirements."""
     u = User(
-        id=uuid.uuid4(), email="sweep@x.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
+        id=uuid.uuid4(),
+        email="sweep@x.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
     )
     sqlite_db.add(u)
     await sqlite_db.commit()
@@ -37,8 +41,12 @@ async def seeded(sqlite_db):
     await sqlite_db.refresh(case)
 
     entity = Entity(
-        case_id=case.id, type=EntityType.DOMAIN.value, label="example.com",
-        attrs={}, confidence=1.0, created_by=u.id,
+        case_id=case.id,
+        type=EntityType.DOMAIN.value,
+        label="example.com",
+        attrs={},
+        confidence=1.0,
+        created_by=u.id,
     )
     sqlite_db.add(entity)
     await sqlite_db.commit()
@@ -50,7 +58,7 @@ async def seeded(sqlite_db):
 async def test_sweeper_marks_stale_running_as_failed(sqlite_db, seeded):
     """A running row older than the threshold gets swept to failed."""
     user, case, entity = seeded
-    stale_time = datetime.now(timezone.utc) - timedelta(minutes=20)
+    stale_time = datetime.now(UTC) - timedelta(minutes=20)
 
     stale_run = PluginRun(
         case_id=case.id,
@@ -78,7 +86,7 @@ async def test_sweeper_marks_stale_running_as_failed(sqlite_db, seeded):
 async def test_sweeper_marks_stale_queued_as_failed(sqlite_db, seeded):
     """A queued row older than the threshold also gets swept."""
     user, case, entity = seeded
-    stale_time = datetime.now(timezone.utc) - timedelta(minutes=15)
+    stale_time = datetime.now(UTC) - timedelta(minutes=15)
 
     queued_run = PluginRun(
         case_id=case.id,
@@ -104,7 +112,7 @@ async def test_sweeper_marks_stale_queued_as_failed(sqlite_db, seeded):
 async def test_sweeper_does_not_touch_fresh_runs(sqlite_db, seeded):
     """A running row within the threshold is left alone."""
     user, case, entity = seeded
-    recent_time = datetime.now(timezone.utc) - timedelta(minutes=2)
+    recent_time = datetime.now(UTC) - timedelta(minutes=2)
 
     fresh_run = PluginRun(
         case_id=case.id,
@@ -130,7 +138,7 @@ async def test_sweeper_does_not_touch_fresh_runs(sqlite_db, seeded):
 async def test_sweeper_does_not_touch_succeeded_or_failed(sqlite_db, seeded):
     """Already-terminal rows are never modified, even if old."""
     user, case, entity = seeded
-    old_time = datetime.now(timezone.utc) - timedelta(hours=1)
+    old_time = datetime.now(UTC) - timedelta(hours=1)
 
     succeeded_run = PluginRun(
         case_id=case.id,
@@ -169,8 +177,8 @@ async def test_sweeper_does_not_touch_succeeded_or_failed(sqlite_db, seeded):
 async def test_sweeper_mixed_stale_and_fresh(sqlite_db, seeded):
     """Only the stale row is swept; the fresh one is untouched."""
     user, case, entity = seeded
-    stale_time = datetime.now(timezone.utc) - timedelta(minutes=30)
-    recent_time = datetime.now(timezone.utc) - timedelta(minutes=1)
+    stale_time = datetime.now(UTC) - timedelta(minutes=30)
+    recent_time = datetime.now(UTC) - timedelta(minutes=1)
 
     stale_run = PluginRun(
         case_id=case.id,

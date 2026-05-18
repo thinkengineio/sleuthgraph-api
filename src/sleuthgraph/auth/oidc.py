@@ -14,13 +14,13 @@ import secrets
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from fastapi_users.authentication.strategy.db import DatabaseStrategy
+from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase
 from httpx_oauth.exceptions import GetIdEmailError, HTTPXOAuthError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sleuthgraph.auth.access_token import AccessToken
 from sleuthgraph.auth.backend import cookie_transport
-from fastapi_users.authentication.strategy.db import DatabaseStrategy
-from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase
 from sleuthgraph.auth.oidc_client import get_oidc_client, is_oidc_configured
 from sleuthgraph.auth.oidc_id_token import IdTokenError, validate_id_token
 from sleuthgraph.auth.oidc_provision import (

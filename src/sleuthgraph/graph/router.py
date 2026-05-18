@@ -65,10 +65,14 @@ async def get_graph(
 
     # Fetch limit+1 so we can detect whether results were truncated
     entities = await entity_repo.list_for_case(
-        case_id, limit=_GRAPH_LIMIT + 1, offset=0,
+        case_id,
+        limit=_GRAPH_LIMIT + 1,
+        offset=0,
     )
     rels = await rel_repo.list_for_case(
-        case_id, limit=_GRAPH_LIMIT + 1, offset=0,
+        case_id,
+        limit=_GRAPH_LIMIT + 1,
+        offset=0,
     )
 
     truncated = len(entities) > _GRAPH_LIMIT or len(rels) > _GRAPH_LIMIT
@@ -77,8 +81,11 @@ async def get_graph(
 
     vertices = [
         GraphVertex(
-            id=e.id, type=e.type, label=e.label,
-            confidence=e.confidence, attrs=e.attrs or {},
+            id=e.id,
+            type=e.type,
+            label=e.label,
+            confidence=e.confidence,
+            attrs=e.attrs or {},
         )
         for e in entities
     ]

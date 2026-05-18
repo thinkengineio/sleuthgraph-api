@@ -13,7 +13,6 @@ from sleuthgraph.plugins.base import PluginContext
 from sleuthgraph.plugins.builtin.shodan import MAX_ENTITIES, ShodanPlugin
 from sleuthgraph.relationships.types import RelationshipType
 
-
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 CREDS = {"api_key": "test-shodan-key-xyz789"}
 
@@ -44,6 +43,7 @@ def _transport(status: int = 200, body: bytes | None = None, fixture: str | None
 
 
 # -- Happy path --
+
 
 @pytest.mark.asyncio
 async def test_extracts_hostnames_as_domain_entities():
@@ -135,6 +135,7 @@ async def test_evidence_contains_ports_and_vulns():
 
 # -- Credential leak prevention --
 
+
 @pytest.mark.asyncio
 async def test_evidence_url_does_not_contain_api_key():
     """SECURITY: API key must NOT leak into evidence reproducibility_spec URL."""
@@ -152,6 +153,7 @@ async def test_evidence_url_does_not_contain_api_key():
 
 
 # -- Error handling --
+
 
 @pytest.mark.asyncio
 async def test_http_error_not_retried():
@@ -174,6 +176,7 @@ async def test_http_error_not_retried():
 
 
 # -- Empty results --
+
 
 @pytest.mark.asyncio
 async def test_empty_response_produces_no_entities():
@@ -204,6 +207,7 @@ async def test_empty_label_returns_empty_result():
 
 # -- Credential access --
 
+
 @pytest.mark.asyncio
 async def test_credentials_api_key_used_in_url():
     """Verify the plugin reads api_key from credentials dict and passes it in query string."""
@@ -225,6 +229,7 @@ async def test_credentials_api_key_used_in_url():
 
 # -- Cap at MAX_ENTITIES --
 
+
 @pytest.mark.asyncio
 async def test_cap_at_max_entities():
     """Entities are capped at MAX_ENTITIES and evidence marks truncated."""
@@ -244,6 +249,7 @@ async def test_cap_at_max_entities():
 # -- Plugin class attributes --
 
 # -- Input validation (path/query injection prevention) --
+
 
 @pytest.mark.asyncio
 async def test_rejects_injected_path():

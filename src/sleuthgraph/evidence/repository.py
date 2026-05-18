@@ -6,7 +6,7 @@ fetch). The blob key is content-addressed (sha256), so re-uploads are no-ops.
 """
 
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,7 +67,9 @@ class EvidenceRepository:
         return evidence
 
     async def get(
-        self, ev_id: uuid.UUID, case_id: uuid.UUID,
+        self,
+        ev_id: uuid.UUID,
+        case_id: uuid.UUID,
     ) -> Evidence | None:
         q = select(Evidence).where(
             Evidence.id == ev_id,
@@ -94,9 +96,11 @@ class EvidenceRepository:
         total = (await self.session.execute(count_q)).scalar_one()
 
         items_q = (
-            select(Evidence).where(*base_filter)
+            select(Evidence)
+            .where(*base_filter)
             .order_by(Evidence.timestamp.desc())
-            .limit(limit).offset(offset)
+            .limit(limit)
+            .offset(offset)
         )
         items = list((await self.session.execute(items_q)).scalars())
         return items, total

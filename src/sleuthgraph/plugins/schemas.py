@@ -10,6 +10,7 @@ from sleuthgraph.entities.types import EntityType
 
 class PluginInfo(BaseModel):
     """Static plugin metadata for the /plugins listing."""
+
     name: str
     version: str
     entity_types_accepted: list[EntityType]
@@ -19,11 +20,13 @@ class PluginInfo(BaseModel):
 
 class RunPluginRequest(BaseModel):
     """Typed request body for POST /cases/{id}/plugins/{name}/run."""
+
     input_entity_id: uuid.UUID
 
 
 class PluginRunRead(BaseModel):
     """Audit row read shape for /plugins/runs listings."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID

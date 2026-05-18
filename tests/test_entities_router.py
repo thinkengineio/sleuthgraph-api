@@ -35,8 +35,12 @@ def _patch_age_for_sqlite(monkeypatch, request):
     """Stub out AGE calls during sqlite-backed HTTP tests."""
     if "postgres_age_session" in request.fixturenames:
         return
-    async def _noop(*a, **k): return None
+
+    async def _noop(*a, **k):
+        return None
+
     from sleuthgraph.entities import repository as repo_mod
+
     monkeypatch.setattr(repo_mod, "upsert_vertex", _noop)
     monkeypatch.setattr(repo_mod, "delete_vertex", _noop)
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 import base64
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -97,15 +97,17 @@ class VirusTotalPlugin(BYOKPlugin):
 
         if entity_type == EntityType.DOMAIN:
             return await self._query_domain(label, api_key, context)
-        elif entity_type == EntityType.IP_ADDRESS:
+        if entity_type == EntityType.IP_ADDRESS:
             return await self._query_ip(label, api_key, context)
-        elif entity_type == EntityType.URL:
+        if entity_type == EntityType.URL:
             return await self._query_url(label, api_key, context)
-        else:
-            return QueryResult()
+        return QueryResult()
 
     async def _query_domain(
-        self, domain: str, api_key: str, context: PluginContext,
+        self,
+        domain: str,
+        api_key: str,
+        context: PluginContext,
     ) -> QueryResult:
         domain = domain.lower().rstrip(".")
         # Security: reject anything that is not a strict LDH domain before it
@@ -121,9 +123,7 @@ class VirusTotalPlugin(BYOKPlugin):
         truncated = False
 
         # Extract resolved IPs from last_dns_records
-        dns_records = data.get("data", {}).get("attributes", {}).get(
-            "last_dns_records", []
-        )
+        dns_records = data.get("data", {}).get("attributes", {}).get("last_dns_records", [])
         for rec in dns_records:
             if entity_count >= MAX_ENTITIES:
                 truncated = True
@@ -159,27 +159,32 @@ class VirusTotalPlugin(BYOKPlugin):
                 break
             rtype = rec.get("type", "")
             value = rec.get("value", "").strip().rstrip(".").lower()
-            if rtype == "CNAME" and value and _DOMAIN_RE.match(value):
-                if value != domain and value.endswith(f".{domain}"):
-                    ref = f"sub-{entity_count}"
-                    entities.append(
-                        EntityProposal(
-                            ref=ref,
-                            type=EntityType.DOMAIN,
-                            label=value,
-                            attrs={"discovered_via": "virustotal"},
-                            confidence=0.8,
-                        )
+            if (
+                rtype == "CNAME"
+                and value
+                and _DOMAIN_RE.match(value)
+                and value != domain
+                and value.endswith(f".{domain}")
+            ):
+                ref = f"sub-{entity_count}"
+                entities.append(
+                    EntityProposal(
+                        ref=ref,
+                        type=EntityType.DOMAIN,
+                        label=value,
+                        attrs={"discovered_via": "virustotal"},
+                        confidence=0.8,
                     )
-                    relationships.append(
-                        RelationshipProposal(
-                            src={"ref": ref},
-                            dst={"input": True},
-                            rel_type=RelationshipType.SUBDOMAIN_OF,
-                            confidence=0.8,
-                        )
+                )
+                relationships.append(
+                    RelationshipProposal(
+                        src={"ref": ref},
+                        dst={"input": True},
+                        rel_type=RelationshipType.SUBDOMAIN_OF,
+                        confidence=0.8,
                     )
-                    entity_count += 1
+                )
+                entity_count += 1
 
         # VT v3 does not return detected_urls inline on /domains/{domain};
         # that requires a separate /relationships call which would be a
@@ -193,7 +198,7 @@ class VirusTotalPlugin(BYOKPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "entity_count": entity_count,
                     "truncated": truncated,
                     "max_entities": MAX_ENTITIES,
@@ -203,11 +208,16 @@ class VirusTotalPlugin(BYOKPlugin):
         ]
 
         return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence,
+            entities=entities,
+            relationships=relationships,
+            evidence=evidence,
         )
 
     async def _query_ip(
-        self, ip: str, api_key: str, context: PluginContext,
+        self,
+        ip: str,
+        api_key: str,
+        context: PluginContext,
     ) -> QueryResult:
         # Security: reject labels with path/query injection characters before
         # they flow into the API URL (CWE-20, CWE-74).
@@ -223,9 +233,7 @@ class VirusTotalPlugin(BYOKPlugin):
 
         # VT v3 ip_addresses endpoint: resolutions are via /relationships.
         # Extract hostnames from last_https_certificate subject alt names.
-        cert = data.get("data", {}).get("attributes", {}).get(
-            "last_https_certificate", {}
-        )
+        cert = data.get("data", {}).get("attributes", {}).get("last_https_certificate", {})
         alt_names = (
             cert.get("extensions", {}).get("subject_alternative_name", [])
             if isinstance(cert, dict)
@@ -265,7 +273,7 @@ class VirusTotalPlugin(BYOKPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "entity_count": entity_count,
                     "truncated": truncated,
                     "max_entities": MAX_ENTITIES,
@@ -275,11 +283,16 @@ class VirusTotalPlugin(BYOKPlugin):
         ]
 
         return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence,
+            entities=entities,
+            relationships=relationships,
+            evidence=evidence,
         )
 
     async def _query_url(
-        self, url_label: str, api_key: str, context: PluginContext,
+        self,
+        url_label: str,
+        api_key: str,
+        context: PluginContext,
     ) -> QueryResult:
         """URL analysis — returns evidence only (analysis stats), no new entities."""
         url_identifier = _url_id(url_label)
@@ -294,7 +307,7 @@ class VirusTotalPlugin(BYOKPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "entity_count": 0,
                     "truncated": False,
                     "max_entities": MAX_ENTITIES,
@@ -312,7 +325,10 @@ class VirusTotalPlugin(BYOKPlugin):
         reraise=True,
     )
     async def _fetch(
-        self, client: httpx.AsyncClient, url: str, api_key: str,
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        api_key: str,
     ) -> tuple[bytes, dict[str, Any]]:
         """Streaming GET with auth header and 10 MiB cap."""
         chunks: list[bytes] = []

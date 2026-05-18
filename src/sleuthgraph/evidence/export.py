@@ -4,7 +4,7 @@ import csv
 import io
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
@@ -23,9 +23,15 @@ router = APIRouter(prefix="/cases/{case_id}/evidence", tags=["evidence"])
 
 
 CSV_COLUMNS = [
-    "id", "timestamp", "source_plugin", "query",
-    "response_hash", "response_bytes", "response_content_type",
-    "entity_id", "reproducibility_spec",
+    "id",
+    "timestamp",
+    "source_plugin",
+    "query",
+    "response_hash",
+    "response_bytes",
+    "response_content_type",
+    "entity_id",
+    "reproducibility_spec",
 ]
 
 _FORMULA_PREFIXES = ("=", "+", "-", "@")
@@ -48,7 +54,7 @@ def _csv_safe(value) -> str:
 @router.get("/export")
 async def export_evidence_ledger(
     case_id: uuid.UUID,
-    format: str = Query(default="json", pattern="^(json|csv)$"),
+    output_format: str = Query(default="json", alias="format", pattern="^(json|csv)$"),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_session),
     storage: EvidenceStorage = Depends(get_storage),
@@ -63,14 +69,11 @@ async def export_evidence_ledger(
     # Pull everything — cap at a large bound to prevent runaway
     items, _total = await repo.list_for_case(case_id, limit=100_000, offset=0)
 
-    if format == "json":
+    if output_format == "json":
         payload = {
             "case_id": str(case_id),
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "items": [
-                EvidenceRead.model_validate(e).model_dump(mode="json")
-                for e in items
-            ],
+            "exported_at": datetime.now(UTC).isoformat(),
+            "items": [EvidenceRead.model_validate(e).model_dump(mode="json") for e in items],
         }
         return JSONResponse(content=payload)
 
@@ -81,17 +84,21 @@ async def export_evidence_ledger(
     writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(CSV_COLUMNS)
     for e in items:
-        writer.writerow([
-            str(e.id),
-            e.timestamp.isoformat() if e.timestamp else "",
-            _csv_safe(e.source_plugin),
-            _csv_safe(e.query),
-            e.response_hash,  # hex digest — safe
-            e.response_bytes,
-            _csv_safe(e.response_content_type or ""),
-            str(e.entity_id) if e.entity_id else "",
-            _csv_safe(json.dumps(e.reproducibility_spec, sort_keys=True, separators=(",", ":"))),
-        ])
+        writer.writerow(
+            [
+                str(e.id),
+                e.timestamp.isoformat() if e.timestamp else "",
+                _csv_safe(e.source_plugin),
+                _csv_safe(e.query),
+                e.response_hash,  # hex digest — safe
+                e.response_bytes,
+                _csv_safe(e.response_content_type or ""),
+                str(e.entity_id) if e.entity_id else "",
+                _csv_safe(
+                    json.dumps(e.reproducibility_spec, sort_keys=True, separators=(",", ":"))
+                ),
+            ]
+        )
 
     filename = f"case-{case_id}-evidence.csv"
     return Response(

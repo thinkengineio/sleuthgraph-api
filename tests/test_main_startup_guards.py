@@ -15,6 +15,7 @@ async def test_production_guard_function_raises_on_insecure_cookie(monkeypatch):
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
     from sleuthgraph.config import get_settings
+
     settings = get_settings()
     assert settings.debug is False
     assert settings.auth_cookie_secure is False
@@ -33,6 +34,7 @@ async def test_production_guard_allows_secure_cookie_in_prod(monkeypatch):
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "true")
     from sleuthgraph.config import get_settings
+
     settings = get_settings()
     assert settings.debug is False
     assert settings.auth_cookie_secure is True
@@ -47,6 +49,7 @@ async def test_production_guard_allows_insecure_cookie_in_debug(monkeypatch):
     monkeypatch.setenv("DEBUG", "true")
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
     from sleuthgraph.config import get_settings
+
     settings = get_settings()
     assert settings.debug is True
     assert settings.auth_cookie_secure is False

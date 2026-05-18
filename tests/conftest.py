@@ -30,9 +30,7 @@ def _set_env(monkeypatch):
     get_session_factory.cache_clear()
 
     # Prevent every test from hitting the real HIBP API.
-    monkeypatch.setattr(
-        "sleuthgraph.auth.manager._is_password_pwned", _hibp_always_false
-    )
+    monkeypatch.setattr("sleuthgraph.auth.manager._is_password_pwned", _hibp_always_false)
     yield
     get_settings.cache_clear()
 

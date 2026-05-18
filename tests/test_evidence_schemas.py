@@ -1,7 +1,7 @@
 """EvidenceCreate / EvidenceRead / EvidenceList shape + validator tests."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -12,8 +12,8 @@ from sleuthgraph.evidence.schemas import (
     EvidenceRead,
 )
 
-
 # --- EvidenceCreate ---
+
 
 def test_create_requires_query():
     with pytest.raises(ValidationError):
@@ -78,8 +78,9 @@ def test_create_rejects_leading_digit_spec_key():
 
 # --- EvidenceRead ---
 
+
 def test_read_shape():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     er = EvidenceRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -98,7 +99,7 @@ def test_read_shape():
 
 
 def test_read_accepts_blob_url_injection():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     er = EvidenceRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -119,14 +120,22 @@ def test_read_accepts_blob_url_injection():
 
 # --- EvidenceList ---
 
+
 def test_list_shape():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = EvidenceRead(
-        id=uuid.uuid4(), case_id=uuid.uuid4(), entity_id=None,
-        source_plugin="manual", query="x",
-        response_hash="a" * 64, response_uri="k", response_bytes=1,
-        response_content_type=None, timestamp=now,
-        reproducibility_spec={}, created_by=None,
+        id=uuid.uuid4(),
+        case_id=uuid.uuid4(),
+        entity_id=None,
+        source_plugin="manual",
+        query="x",
+        response_hash="a" * 64,
+        response_uri="k",
+        response_bytes=1,
+        response_content_type=None,
+        timestamp=now,
+        reproducibility_spec={},
+        created_by=None,
     )
     lst = EvidenceList(items=[row], total=1, limit=50, offset=0)
     assert lst.total == 1

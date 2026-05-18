@@ -53,8 +53,5 @@ async def upsert_edge(session: AsyncSession, rel: Relationship) -> None:
 
 async def delete_edge(session: AsyncSession, rel_id: uuid.UUID) -> None:
     """Delete the edge with this relationship id (vertices preserved)."""
-    cypher = (
-        f"MATCH ()-[r {{id: '{rel_id}'}}]->() "
-        f"DELETE r"
-    )
+    cypher = f"MATCH ()-[r {{id: '{rel_id}'}}]->() DELETE r"
     await run_cypher(session, cypher, return_col="r")

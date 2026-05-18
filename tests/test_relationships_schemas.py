@@ -1,7 +1,7 @@
 """Relationship schema tests: types, confidence bounds, source_plugin."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -40,41 +40,54 @@ def test_create_default_confidence_and_attrs():
 
 def test_create_confidence_bounds():
     src, dst = uuid.uuid4(), uuid.uuid4()
-    RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                       rel_type=RelationshipType.OWNS, confidence=0.0)
-    RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                       rel_type=RelationshipType.OWNS, confidence=1.0)
+    RelationshipCreate(
+        src_entity_id=src, dst_entity_id=dst, rel_type=RelationshipType.OWNS, confidence=0.0
+    )
+    RelationshipCreate(
+        src_entity_id=src, dst_entity_id=dst, rel_type=RelationshipType.OWNS, confidence=1.0
+    )
     with pytest.raises(ValidationError):
-        RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                           rel_type=RelationshipType.OWNS, confidence=-0.01)
+        RelationshipCreate(
+            src_entity_id=src, dst_entity_id=dst, rel_type=RelationshipType.OWNS, confidence=-0.01
+        )
     with pytest.raises(ValidationError):
-        RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                           rel_type=RelationshipType.OWNS, confidence=1.01)
+        RelationshipCreate(
+            src_entity_id=src, dst_entity_id=dst, rel_type=RelationshipType.OWNS, confidence=1.01
+        )
 
 
 def test_create_source_plugin_optional():
     src, dst = uuid.uuid4(), uuid.uuid4()
-    rc = RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                            rel_type=RelationshipType.MENTIONS,
-                            source_plugin="my-plugin")
+    rc = RelationshipCreate(
+        src_entity_id=src,
+        dst_entity_id=dst,
+        rel_type=RelationshipType.MENTIONS,
+        source_plugin="my-plugin",
+    )
     assert rc.source_plugin == "my-plugin"
 
 
 def test_create_source_plugin_max_128():
     src, dst = uuid.uuid4(), uuid.uuid4()
     # Exactly 128 chars is fine
-    RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                       rel_type=RelationshipType.MENTIONS,
-                       source_plugin="x" * 128)
+    RelationshipCreate(
+        src_entity_id=src,
+        dst_entity_id=dst,
+        rel_type=RelationshipType.MENTIONS,
+        source_plugin="x" * 128,
+    )
     # 129 chars should be rejected
     with pytest.raises(ValidationError):
-        RelationshipCreate(src_entity_id=src, dst_entity_id=dst,
-                           rel_type=RelationshipType.MENTIONS,
-                           source_plugin="x" * 129)
+        RelationshipCreate(
+            src_entity_id=src,
+            dst_entity_id=dst,
+            rel_type=RelationshipType.MENTIONS,
+            source_plugin="x" * 129,
+        )
 
 
 def test_read_shape():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rr = RelationshipRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -92,7 +105,7 @@ def test_read_shape():
 
 
 def test_read_allows_null_created_by_and_source_plugin():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rr = RelationshipRead(
         id=uuid.uuid4(),
         case_id=uuid.uuid4(),
@@ -112,6 +125,7 @@ def test_read_allows_null_created_by_and_source_plugin():
 def test_no_update_schema_exists():
     """There must be no RelationshipUpdate class — relationships are immutable."""
     import sleuthgraph.relationships.schemas as s
+
     assert not hasattr(s, "RelationshipUpdate"), (
         "RelationshipUpdate must not exist; use delete+recreate for edits"
     )
@@ -120,6 +134,7 @@ def test_no_update_schema_exists():
 # ---------------------------------------------------------------------------
 # attrs key validation (HIGH-1 / map-key injection regression tests)
 # ---------------------------------------------------------------------------
+
 
 def test_attrs_accepts_valid_keys():
     src, dst = uuid.uuid4(), uuid.uuid4()

@@ -1,7 +1,7 @@
 """CaseRepository: CRUD with ownership isolation + soft-delete."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +28,9 @@ class CaseRepository:
         return case
 
     async def get(
-        self, case_id: uuid.UUID, owner_id: uuid.UUID,
+        self,
+        case_id: uuid.UUID,
+        owner_id: uuid.UUID,
     ) -> Case | None:
         q = select(Case).where(
             Case.id == case_id,
@@ -70,11 +72,13 @@ class CaseRepository:
         return case
 
     async def soft_delete(
-        self, case_id: uuid.UUID, owner_id: uuid.UUID,
+        self,
+        case_id: uuid.UUID,
+        owner_id: uuid.UUID,
     ) -> bool:
         case = await self.get(case_id, owner_id)
         if case is None:
             return False
-        case.deleted_at = datetime.now(timezone.utc)
+        case.deleted_at = datetime.now(UTC)
         await self.session.commit()
         return True

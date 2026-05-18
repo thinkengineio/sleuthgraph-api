@@ -10,9 +10,17 @@ def test_evidence_tablename():
 def test_evidence_columns():
     cols = {c.name for c in Evidence.__table__.columns}
     required = {
-        "id", "case_id", "entity_id", "source_plugin", "query",
-        "response_hash", "response_uri", "response_bytes",
-        "response_content_type", "timestamp", "reproducibility_spec",
+        "id",
+        "case_id",
+        "entity_id",
+        "source_plugin",
+        "query",
+        "response_hash",
+        "response_uri",
+        "response_bytes",
+        "response_content_type",
+        "timestamp",
+        "reproducibility_spec",
         "created_by",
     }
     assert required <= cols, f"missing: {required - cols}"

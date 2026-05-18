@@ -11,17 +11,17 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from sleuthgraph.config import get_settings
-from sleuthgraph.db import Base
 
 # Load models so their metadata is registered on Base.metadata.
 from sleuthgraph.auth import models as _auth_models  # noqa: F401
 from sleuthgraph.cases import models as _cases_models  # noqa: F401
+from sleuthgraph.config import get_settings
 from sleuthgraph.credentials import models as _cred_models  # noqa: F401
+from sleuthgraph.db import Base
 from sleuthgraph.entities import models as _entities_models  # noqa: F401
-from sleuthgraph.relationships import models as _rel_models  # noqa: F401
 from sleuthgraph.evidence import models as _evidence_models  # noqa: F401
 from sleuthgraph.plugins import models as _plugin_models  # noqa: F401
+from sleuthgraph.relationships import models as _rel_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_settings().database_url)

@@ -25,7 +25,6 @@ from sleuthgraph.plugins.runner import (
     PluginRunner,
 )
 
-
 # ---------- fixtures ----------
 
 
@@ -42,10 +41,13 @@ def _patch_age_for_sqlite(monkeypatch, request):
     """Stub out AGE calls so SQLite tests pass."""
     if "postgres_age_session" in request.fixturenames:
         return
+
     async def _noop(*a, **k):
         return None
+
     from sleuthgraph.entities import repository as ent_repo
     from sleuthgraph.relationships import repository as rel_repo
+
     monkeypatch.setattr(ent_repo, "upsert_vertex", _noop)
     monkeypatch.setattr(ent_repo, "delete_vertex", _noop)
     monkeypatch.setattr(rel_repo, "upsert_edge", _noop)
@@ -242,7 +244,10 @@ async def test_runner_injects_credential_when_stored(db, user, case_with_domain)
     runner = PluginRunner(db, storage, registry)
 
     result = await runner.run(
-        "fake_byok", case.id, domain, created_by=user.id,
+        "fake_byok",
+        case.id,
+        domain,
+        created_by=user.id,
     )
     assert result.run.status == "succeeded"
     assert _BYOKFakePlugin.received_credentials == {"api_key": "my-api-key-xyz"}
@@ -260,16 +265,18 @@ async def test_runner_raises_when_credential_missing(db, user, case_with_domain)
 
     with pytest.raises(PluginCredentialMissingError, match="No API key stored"):
         await runner.run(
-            "fake_byok", case.id, domain, created_by=user.id,
+            "fake_byok",
+            case.id,
+            domain,
+            created_by=user.id,
         )
 
     # Verify a failed audit row was written with the credentials_missing taxonomy
     from sqlalchemy import select
+
     from sleuthgraph.plugins.models import PluginRun
 
-    rows = list(
-        (await db.execute(select(PluginRun).where(PluginRun.case_id == case.id))).scalars()
-    )
+    rows = list((await db.execute(select(PluginRun).where(PluginRun.case_id == case.id))).scalars())
     assert len(rows) == 1
     assert rows[0].status == "failed"
     assert rows[0].error_message.startswith("credentials_missing:")

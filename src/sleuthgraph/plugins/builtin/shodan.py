@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -187,11 +187,13 @@ class ShodanPlugin(BYOKPlugin):
                 port = service_data.get("port")
                 product = service_data.get("product", "")
                 transport = service_data.get("transport", "tcp")
-                services_summary.append({
-                    "port": port,
-                    "transport": transport,
-                    "product": product,
-                })
+                services_summary.append(
+                    {
+                        "port": port,
+                        "transport": transport,
+                        "product": product,
+                    }
+                )
 
         evidence = [
             EvidenceProposal(
@@ -201,7 +203,7 @@ class ShodanPlugin(BYOKPlugin):
                 reproducibility_spec={
                     "url": redacted_url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "entity_count": entity_count,
                     "truncated": truncated,
                     "max_entities": MAX_ENTITIES,
@@ -214,7 +216,9 @@ class ShodanPlugin(BYOKPlugin):
         ]
 
         return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence,
+            entities=entities,
+            relationships=relationships,
+            evidence=evidence,
         )
 
     @retry(
@@ -224,7 +228,9 @@ class ShodanPlugin(BYOKPlugin):
         reraise=True,
     )
     async def _fetch(
-        self, client: httpx.AsyncClient, url: str,
+        self,
+        client: httpx.AsyncClient,
+        url: str,
     ) -> tuple[bytes, dict[str, Any]]:
         """Streaming GET with 10 MiB cap."""
         chunks: list[bytes] = []

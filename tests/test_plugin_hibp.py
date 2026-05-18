@@ -1,6 +1,5 @@
 """HIBPPlugin — BYOK breach database lookup for EMAIL entities."""
 
-import json
 import uuid
 from pathlib import Path
 
@@ -11,7 +10,6 @@ from sleuthgraph.entities.models import Entity
 from sleuthgraph.entities.types import EntityType
 from sleuthgraph.plugins.base import PluginContext
 from sleuthgraph.plugins.builtin.hibp import HIBPPlugin
-
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 CREDS = {"api_key": "test-hibp-key-abc123"}

@@ -6,7 +6,7 @@ fixture (auto-skipped if no live db).
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -23,10 +23,10 @@ from sleuthgraph.relationships.repository import (
 from sleuthgraph.relationships.schemas import RelationshipCreate
 from sleuthgraph.relationships.types import RelationshipType
 
-
 # ---------------------------------------------------------------------------
 # AGE stub — skip when running against real postgres
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _patch_age_for_sqlite(request):
@@ -56,6 +56,7 @@ def _patch_age_for_sqlite(request):
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 async def db(test_engine):
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
@@ -84,9 +85,10 @@ async def _make_case(db, owner_id: uuid.UUID) -> Case:
     return c
 
 
-async def _make_entity(db, case_id: uuid.UUID, created_by: uuid.UUID,
-                        label: str = "example.com") -> Entity:
-    now = datetime.now(timezone.utc)
+async def _make_entity(
+    db, case_id: uuid.UUID, created_by: uuid.UUID, label: str = "example.com"
+) -> Entity:
+    now = datetime.now(UTC)
     e = Entity(
         id=uuid.uuid4(),
         case_id=case_id,
@@ -106,6 +108,7 @@ async def _make_entity(db, case_id: uuid.UUID, created_by: uuid.UUID,
 # ---------------------------------------------------------------------------
 # Basic CRUD
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_create_and_get(db):
@@ -187,6 +190,7 @@ async def test_get_returns_none_after_soft_delete(db):
 # list_for_case filters
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_list_for_case_returns_all(db):
     user = await _make_user(db)
@@ -197,14 +201,24 @@ async def test_list_for_case_returns_all(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id, dst_entity_id=e2.id,
-        rel_type=RelationshipType.OWNS,
-    ))
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e2.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.RESOLVES_TO,
-    ))
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e2.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.RESOLVES_TO,
+        ),
+    )
 
     items = await repo.list_for_case(case.id)
     assert len(items) == 2
@@ -220,14 +234,24 @@ async def test_list_excludes_soft_deleted(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    r1 = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id, dst_entity_id=e2.id,
-        rel_type=RelationshipType.OWNS,
-    ))
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e2.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.RESOLVES_TO,
-    ))
+    r1 = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e2.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.RESOLVES_TO,
+        ),
+    )
     await repo.soft_delete(r1.id, case.id)
 
     items = await repo.list_for_case(case.id)
@@ -245,14 +269,24 @@ async def test_list_filters_by_rel_type(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id, dst_entity_id=e2.id,
-        rel_type=RelationshipType.OWNS,
-    ))
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e2.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.RESOLVES_TO,
-    ))
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e2.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.RESOLVES_TO,
+        ),
+    )
 
     owns = await repo.list_for_case(case.id, rel_type="OWNS")
     resolves = await repo.list_for_case(case.id, rel_type="RESOLVES_TO")
@@ -270,14 +304,24 @@ async def test_list_filters_by_src(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id, dst_entity_id=e2.id,
-        rel_type=RelationshipType.OWNS,
-    ))
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e2.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.OWNS,
-    ))
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e2.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
 
     from_e1 = await repo.list_for_case(case.id, src=e1.id)
     assert len(from_e1) == 1
@@ -294,14 +338,24 @@ async def test_list_filters_by_dst(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.OWNS,
-    ))
-    await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e2.id, dst_entity_id=e3.id,
-        rel_type=RelationshipType.OWNS,
-    ))
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
+    await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e2.id,
+            dst_entity_id=e3.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
 
     to_e3 = await repo.list_for_case(case.id, dst=e3.id)
     assert len(to_e3) == 2
@@ -312,6 +366,7 @@ async def test_list_filters_by_dst(db):
 # soft_delete
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_soft_delete_returns_true(db):
     user = await _make_user(db)
@@ -321,10 +376,15 @@ async def test_soft_delete_returns_true(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=src.id, dst_entity_id=dst.id,
-        rel_type=RelationshipType.OWNS,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=src.id,
+            dst_entity_id=dst.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
     assert await repo.soft_delete(rel.id, case.id) is True
 
 
@@ -338,10 +398,15 @@ async def test_soft_delete_returns_false_for_wrong_case(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=src.id, dst_entity_id=dst.id,
-        rel_type=RelationshipType.OWNS,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=src.id,
+            dst_entity_id=dst.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
 
     # Wrong case_id — must return False
     assert await repo.soft_delete(rel.id, other_case.id) is False
@@ -356,10 +421,15 @@ async def test_soft_delete_already_deleted_returns_false(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=src.id, dst_entity_id=dst.id,
-        rel_type=RelationshipType.OWNS,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=src.id,
+            dst_entity_id=dst.id,
+            rel_type=RelationshipType.OWNS,
+        ),
+    )
     await repo.soft_delete(rel.id, case.id)
     assert await repo.soft_delete(rel.id, case.id) is False
 
@@ -367,6 +437,7 @@ async def test_soft_delete_already_deleted_returns_false(db):
 # ---------------------------------------------------------------------------
 # Endpoint validation
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_create_fails_when_src_not_in_case(db):
@@ -380,11 +451,15 @@ async def test_create_fails_when_src_not_in_case(db):
 
     repo = RelationshipRepository(db)
     with pytest.raises(EndpointNotInCaseError):
-        await repo.create(case.id, user.id, RelationshipCreate(
-            src_entity_id=src.id,
-            dst_entity_id=dst.id,
-            rel_type=RelationshipType.OWNS,
-        ))
+        await repo.create(
+            case.id,
+            user.id,
+            RelationshipCreate(
+                src_entity_id=src.id,
+                dst_entity_id=dst.id,
+                rel_type=RelationshipType.OWNS,
+            ),
+        )
 
 
 @pytest.mark.asyncio
@@ -399,11 +474,15 @@ async def test_create_fails_when_dst_not_in_case(db):
 
     repo = RelationshipRepository(db)
     with pytest.raises(EndpointNotInCaseError):
-        await repo.create(case.id, user.id, RelationshipCreate(
-            src_entity_id=src.id,
-            dst_entity_id=dst.id,
-            rel_type=RelationshipType.OWNS,
-        ))
+        await repo.create(
+            case.id,
+            user.id,
+            RelationshipCreate(
+                src_entity_id=src.id,
+                dst_entity_id=dst.id,
+                rel_type=RelationshipType.OWNS,
+            ),
+        )
 
 
 @pytest.mark.asyncio
@@ -417,11 +496,15 @@ async def test_create_fails_when_neither_endpoint_in_case(db):
 
     repo = RelationshipRepository(db)
     with pytest.raises(EndpointNotInCaseError):
-        await repo.create(case.id, user.id, RelationshipCreate(
-            src_entity_id=src.id,
-            dst_entity_id=dst.id,
-            rel_type=RelationshipType.OWNS,
-        ))
+        await repo.create(
+            case.id,
+            user.id,
+            RelationshipCreate(
+                src_entity_id=src.id,
+                dst_entity_id=dst.id,
+                rel_type=RelationshipType.OWNS,
+            ),
+        )
 
 
 @pytest.mark.asyncio
@@ -433,11 +516,15 @@ async def test_self_loop_allowed(db):
     await db.commit()
 
     repo = RelationshipRepository(db)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=entity.id,
-        dst_entity_id=entity.id,
-        rel_type=RelationshipType.ASSOCIATED_WITH,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=entity.id,
+            dst_entity_id=entity.id,
+            rel_type=RelationshipType.ASSOCIATED_WITH,
+        ),
+    )
     assert rel.src_entity_id == rel.dst_entity_id == entity.id
 
 
@@ -445,10 +532,12 @@ async def test_self_loop_allowed(db):
 # Postgres + AGE integration (auto-skipped without live db)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_create_writes_age_edge(postgres_age_session):
     """create() calls upsert_edge and the edge is visible in AGE."""
     from sqlalchemy import text
+
     from sleuthgraph.graph.age import GRAPH_NAME
 
     session = postgres_age_session
@@ -457,16 +546,29 @@ async def test_create_writes_age_edge(postgres_age_session):
 
     # Need AGE vertices for both endpoints
     from sleuthgraph.entities.age import upsert_vertex
-    now = datetime.now(timezone.utc)
+
+    now = datetime.now(UTC)
     e1 = Entity(
-        id=uuid.uuid4(), case_id=case.id, type=EntityType.DOMAIN.value,
-        label="age-src.example", attrs={}, confidence=1.0,
-        created_by=user.id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case.id,
+        type=EntityType.DOMAIN.value,
+        label="age-src.example",
+        attrs={},
+        confidence=1.0,
+        created_by=user.id,
+        created_at=now,
+        updated_at=now,
     )
     e2 = Entity(
-        id=uuid.uuid4(), case_id=case.id, type=EntityType.IP_ADDRESS.value,
-        label="10.0.0.1", attrs={}, confidence=1.0,
-        created_by=user.id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case.id,
+        type=EntityType.IP_ADDRESS.value,
+        label="10.0.0.1",
+        attrs={},
+        confidence=1.0,
+        created_by=user.id,
+        created_at=now,
+        updated_at=now,
     )
     session.add_all([e1, e2])
     await session.flush()
@@ -475,25 +577,32 @@ async def test_create_writes_age_edge(postgres_age_session):
     await session.commit()
 
     repo = RelationshipRepository(session)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id,
-        dst_entity_id=e2.id,
-        rel_type=RelationshipType.RESOLVES_TO,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.RESOLVES_TO,
+        ),
+    )
 
     # Verify the AGE edge was created
     await session.execute(text('SET search_path = ag_catalog, "$user", public;'))
-    r = await session.execute(text(
-        f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
-        f"MATCH ()-[r {{id: '{rel.id}'}}]->() RETURN count(r) AS c "
-        f"$$) AS (c agtype);"
-    ))
+    r = await session.execute(
+        text(
+            f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
+            f"MATCH ()-[r {{id: '{rel.id}'}}]->() RETURN count(r) AS c "
+            f"$$) AS (c agtype);"
+        )
+    )
     count = int(str(r.first()[0]).split("::")[0])
     assert count == 1
 
     # Cleanup
-    from sleuthgraph.relationships.age import delete_edge
     from sleuthgraph.entities.age import delete_vertex
+    from sleuthgraph.relationships.age import delete_edge
+
     await delete_edge(session, rel.id)
     await delete_vertex(session, e1.id)
     await delete_vertex(session, e2.id)
@@ -504,23 +613,36 @@ async def test_create_writes_age_edge(postgres_age_session):
 async def test_soft_delete_removes_age_edge(postgres_age_session):
     """soft_delete() calls delete_edge and the edge disappears from AGE."""
     from sqlalchemy import text
-    from sleuthgraph.graph.age import GRAPH_NAME
+
     from sleuthgraph.entities.age import delete_vertex, upsert_vertex
+    from sleuthgraph.graph.age import GRAPH_NAME
 
     session = postgres_age_session
     user = await _make_user(session)
     case = await _make_case(session, user.id)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     e1 = Entity(
-        id=uuid.uuid4(), case_id=case.id, type=EntityType.DOMAIN.value,
-        label="del-src.example", attrs={}, confidence=1.0,
-        created_by=user.id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case.id,
+        type=EntityType.DOMAIN.value,
+        label="del-src.example",
+        attrs={},
+        confidence=1.0,
+        created_by=user.id,
+        created_at=now,
+        updated_at=now,
     )
     e2 = Entity(
-        id=uuid.uuid4(), case_id=case.id, type=EntityType.IP_ADDRESS.value,
-        label="10.0.0.2", attrs={}, confidence=1.0,
-        created_by=user.id, created_at=now, updated_at=now,
+        id=uuid.uuid4(),
+        case_id=case.id,
+        type=EntityType.IP_ADDRESS.value,
+        label="10.0.0.2",
+        attrs={},
+        confidence=1.0,
+        created_by=user.id,
+        created_at=now,
+        updated_at=now,
     )
     session.add_all([e1, e2])
     await session.flush()
@@ -529,20 +651,26 @@ async def test_soft_delete_removes_age_edge(postgres_age_session):
     await session.commit()
 
     repo = RelationshipRepository(session)
-    rel = await repo.create(case.id, user.id, RelationshipCreate(
-        src_entity_id=e1.id,
-        dst_entity_id=e2.id,
-        rel_type=RelationshipType.RESOLVES_TO,
-    ))
+    rel = await repo.create(
+        case.id,
+        user.id,
+        RelationshipCreate(
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
+            rel_type=RelationshipType.RESOLVES_TO,
+        ),
+    )
 
     await repo.soft_delete(rel.id, case.id)
 
     await session.execute(text('SET search_path = ag_catalog, "$user", public;'))
-    r = await session.execute(text(
-        f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
-        f"MATCH ()-[r {{id: '{rel.id}'}}]->() RETURN count(r) AS c "
-        f"$$) AS (c agtype);"
-    ))
+    r = await session.execute(
+        text(
+            f"SELECT * FROM cypher('{GRAPH_NAME}', $$ "
+            f"MATCH ()-[r {{id: '{rel.id}'}}]->() RETURN count(r) AS c "
+            f"$$) AS (c agtype);"
+        )
+    )
     count = int(str(r.first()[0]).split("::")[0])
     assert count == 0
 
@@ -556,6 +684,7 @@ async def test_soft_delete_removes_age_edge(postgres_age_session):
 # create_if_not_exists (dedup helper)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_create_if_not_exists_creates_when_absent(db):
     user = await _make_user(db)
@@ -566,9 +695,11 @@ async def test_create_if_not_exists_creates_when_absent(db):
 
     repo = RelationshipRepository(db)
     rel, created = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
         ),
     )
@@ -586,16 +717,20 @@ async def test_create_if_not_exists_returns_existing(db):
 
     repo = RelationshipRepository(db)
     first, c1 = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
         ),
     )
     second, c2 = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
         ),
     )
@@ -613,16 +748,20 @@ async def test_create_if_not_exists_different_rel_type_creates_new(db):
 
     repo = RelationshipRepository(db)
     sub, _ = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
         ),
     )
     owns, created = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.OWNS,
         ),
     )
@@ -641,17 +780,21 @@ async def test_create_if_not_exists_preserves_existing_confidence(db):
 
     repo = RelationshipRepository(db)
     first, _ = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
             confidence=0.5,
         ),
     )
     second, created = await repo.create_if_not_exists(
-        case.id, None,
+        case.id,
+        None,
         RelationshipCreate(
-            src_entity_id=e1.id, dst_entity_id=e2.id,
+            src_entity_id=e1.id,
+            dst_entity_id=e2.id,
             rel_type=RelationshipType.SUBDOMAIN_OF,
             confidence=0.99,
         ),

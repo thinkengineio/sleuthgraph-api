@@ -1,7 +1,6 @@
 """PluginRunRepository: case-scoped queries."""
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -22,8 +21,12 @@ async def sqlite_db(test_engine):
 @pytest.fixture
 async def seeded(sqlite_db):
     u = User(
-        id=uuid.uuid4(), email="o@x.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
+        id=uuid.uuid4(),
+        email="o@x.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
     )
     sqlite_db.add(u)
     await sqlite_db.commit()
@@ -36,8 +39,11 @@ async def seeded(sqlite_db):
 
 async def _make_run(db, case_id, plugin_name, status, user_id):
     run = PluginRun(
-        case_id=case_id, plugin_name=plugin_name, plugin_version="0.1",
-        status=status, created_by=user_id,
+        case_id=case_id,
+        plugin_name=plugin_name,
+        plugin_version="0.1",
+        status=status,
+        created_by=user_id,
     )
     db.add(run)
     await db.commit()

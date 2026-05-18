@@ -4,10 +4,10 @@ MVP set of typed edges. Stored as VARCHAR(32) on the model; extensible
 without migration by adding values here.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class RelationshipType(str, Enum):
+class RelationshipType(StrEnum):
     OWNS = "OWNS"
     EMPLOYED_BY = "EMPLOYED_BY"
     REGISTERED_BY = "REGISTERED_BY"

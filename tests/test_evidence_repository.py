@@ -20,12 +20,15 @@ class _FakeStorage:
     Records put/get calls. put() can be toggled to raise via ``.fail = True``
     so we can test the rollback path.
     """
+
     def __init__(self) -> None:
         self._blobs: dict[str, bytes] = {}
         self.fail = False
         self.put_calls: list[tuple[str, bytes, str]] = []
 
-    async def put(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+    async def put(
+        self, key: str, data: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
         if self.fail:
             raise RuntimeError("boom")
         self.put_calls.append((key, data, content_type))
@@ -50,8 +53,14 @@ async def sqlite_db(test_engine):
 
 @pytest.fixture
 async def seeded(sqlite_db):
-    u = User(id=uuid.uuid4(), email="o@x.com", hashed_password="x",
-             is_active=True, is_superuser=False, is_verified=False)
+    u = User(
+        id=uuid.uuid4(),
+        email="o@x.com",
+        hashed_password="x",
+        is_active=True,
+        is_superuser=False,
+        is_verified=False,
+    )
     sqlite_db.add(u)
     await sqlite_db.commit()
     c = Case(owner_id=u.id, name="C", tags=[])
@@ -63,6 +72,7 @@ async def seeded(sqlite_db):
 
 # --- unit tests with fake storage ---
 
+
 @pytest.mark.asyncio
 async def test_create_uploads_blob_and_inserts_row(sqlite_db, seeded):
     _, case = seeded
@@ -71,7 +81,8 @@ async def test_create_uploads_blob_and_inserts_row(sqlite_db, seeded):
     payload = b'{"a":1}'
 
     ev = await repo.create(
-        case.id, None,
+        case.id,
+        None,
         EvidenceCreate(query="manual capture"),
         payload,
         content_type="application/json",
@@ -98,9 +109,11 @@ async def test_create_default_content_type(sqlite_db, seeded):
     storage = _FakeStorage()
     repo = EvidenceRepository(sqlite_db, storage)
     ev = await repo.create(
-        case.id, None,
+        case.id,
+        None,
         EvidenceCreate(query="q"),
-        b"raw bytes", content_type=None,
+        b"raw bytes",
+        content_type=None,
     )
     assert ev.response_content_type == "application/octet-stream"
     # Storage should have been called with the same fallback content-type
@@ -118,14 +131,18 @@ async def test_create_rolls_back_sql_if_blob_upload_fails(sqlite_db, seeded):
 
     with pytest.raises(RuntimeError, match="boom"):
         await repo.create(
-            case_id, None,
+            case_id,
+            None,
             EvidenceCreate(query="fails"),
-            b"payload", content_type=None,
+            b"payload",
+            content_type=None,
         )
 
     # No evidence row should exist (SQL was rolled back)
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from sleuthgraph.evidence.models import Evidence
+
     r = await sqlite_db.execute(
         select(func.count()).select_from(Evidence).where(Evidence.case_id == case_id)
     )
@@ -138,9 +155,11 @@ async def test_get_scoped_to_case(sqlite_db, seeded):
     storage = _FakeStorage()
     repo = EvidenceRepository(sqlite_db, storage)
     ev = await repo.create(
-        case.id, None,
+        case.id,
+        None,
         EvidenceCreate(query="x"),
-        b"payload", content_type=None,
+        b"payload",
+        content_type=None,
     )
     assert (await repo.get(ev.id, case.id)) is not None
     assert (await repo.get(ev.id, uuid.uuid4())) is None
@@ -153,9 +172,11 @@ async def test_list_returns_items_and_total(sqlite_db, seeded):
     repo = EvidenceRepository(sqlite_db, storage)
     for i in range(7):
         await repo.create(
-            case.id, None,
+            case.id,
+            None,
             EvidenceCreate(query=f"q{i}"),
-            f"payload-{i}".encode(), content_type=None,
+            f"payload-{i}".encode(),
+            content_type=None,
         )
     items, total = await repo.list_for_case(case.id, limit=5, offset=0)
     assert len(items) == 5
@@ -167,11 +188,10 @@ async def test_list_filter_by_source_plugin(sqlite_db, seeded):
     _, case = seeded
     storage = _FakeStorage()
     repo = EvidenceRepository(sqlite_db, storage)
-    await repo.create(case.id, None, EvidenceCreate(query="manual-1"),
-                       b"a", None)
-    await repo.create(case.id, None,
-                       EvidenceCreate(query="plugin-1", source_plugin="crtsh"),
-                       b"b", None)
+    await repo.create(case.id, None, EvidenceCreate(query="manual-1"), b"a", None)
+    await repo.create(
+        case.id, None, EvidenceCreate(query="plugin-1", source_plugin="crtsh"), b"b", None
+    )
     manual_items, manual_total = await repo.list_for_case(case.id, source_plugin="manual")
     assert manual_total == 1
     crt_items, crt_total = await repo.list_for_case(case.id, source_plugin="crtsh")
@@ -202,6 +222,7 @@ async def test_sweep_all_healthy(sqlite_db, seeded):
     await repo.create(case.id, None, EvidenceCreate(query="b"), b"bbb", None)
 
     from sleuthgraph.evidence.integrity import sweep_all
+
     mismatches = await sweep_all(sqlite_db, storage)
     assert mismatches == []
 
@@ -213,13 +234,14 @@ async def test_sweep_all_detects_tampered_blob(sqlite_db, seeded):
     storage = _FakeStorage()
     repo = EvidenceRepository(sqlite_db, storage)
 
-    ev_ok = await repo.create(case.id, None, EvidenceCreate(query="ok"), b"ok-data", None)
+    await repo.create(case.id, None, EvidenceCreate(query="ok"), b"ok-data", None)
     ev_bad = await repo.create(case.id, None, EvidenceCreate(query="bad"), b"original", None)
 
     # Tamper with one blob
     storage._blobs[ev_bad.response_uri] = b"tampered"
 
     from sleuthgraph.evidence.integrity import sweep_all
+
     mismatches = await sweep_all(sqlite_db, storage)
     assert len(mismatches) == 1
     assert mismatches[0].ev_id == ev_bad.id
@@ -229,6 +251,7 @@ async def test_sweep_all_detects_tampered_blob(sqlite_db, seeded):
 
 
 # --- integration test (MinIO-backed) ---
+
 
 @pytest.fixture
 async def live_storage():
@@ -250,21 +273,30 @@ async def test_create_uploads_to_real_minio(postgres_age_session, live_storage):
     # Need a case row first — use raw SQL to avoid dragging in the full ORM graph here
     from sleuthgraph.auth.models import User
     from sleuthgraph.cases.models import Case
+
     user_id = uuid.uuid4()
     case_id = uuid.uuid4()
-    postgres_age_session.add(User(
-        id=user_id, email=f"u-{user_id}@x.com", hashed_password="x",
-        is_active=True, is_superuser=False, is_verified=False,
-    ))
+    postgres_age_session.add(
+        User(
+            id=user_id,
+            email=f"u-{user_id}@x.com",
+            hashed_password="x",
+            is_active=True,
+            is_superuser=False,
+            is_verified=False,
+        )
+    )
     postgres_age_session.add(Case(id=case_id, owner_id=user_id, name="live", tags=[]))
     await postgres_age_session.commit()
 
     repo = EvidenceRepository(postgres_age_session, live_storage)
     payload = b'{"live":"test"}'
     ev = await repo.create(
-        case_id, user_id,
+        case_id,
+        user_id,
         EvidenceCreate(query="live upload"),
-        payload, "application/json",
+        payload,
+        "application/json",
     )
 
     # Fetch the blob back from MinIO, verify it matches

@@ -12,7 +12,7 @@ API docs: https://www.opensanctions.org/docs/api/
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -78,7 +78,7 @@ class OpenSanctionsPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "hit_count": hit_count,
                     "matched": matched,
                     "fetch_status": "ok",
@@ -95,15 +95,11 @@ class OpenSanctionsPlugin(OSINTPlugin):
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch(
-        self, client: httpx.AsyncClient, url: str
-    ) -> tuple[bytes, int]:
+    async def _fetch(self, client: httpx.AsyncClient, url: str) -> tuple[bytes, int]:
         """Streaming GET with 10 MiB cap. Returns (raw_bytes, hit_count)."""
         chunks: list[bytes] = []
         total = 0
-        async with client.stream(
-            "GET", url, headers={"User-Agent": "sleuthgraph/0.1"}
-        ) as resp:
+        async with client.stream("GET", url, headers={"User-Agent": "sleuthgraph/0.1"}) as resp:
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)

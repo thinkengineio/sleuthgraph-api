@@ -7,6 +7,7 @@ from httpx import AsyncClient
 @pytest.fixture
 async def fake_email_sender(monkeypatch):
     """Swap the ConsoleEmailSender for an in-memory recorder."""
+
     class _Fake:
         def __init__(self):
             self.reset_calls: list[tuple[str, str]] = []
@@ -20,6 +21,7 @@ async def fake_email_sender(monkeypatch):
 
     fake = _Fake()
     import sleuthgraph.auth.email as email_mod
+
     monkeypatch.setattr(email_mod, "_sender", fake)
     return fake
 

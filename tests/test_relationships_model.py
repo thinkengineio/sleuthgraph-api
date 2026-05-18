@@ -14,8 +14,14 @@ def test_relationship_type_has_9_members():
 
 def test_relationship_type_values():
     expected = {
-        "OWNS", "EMPLOYED_BY", "REGISTERED_BY", "HOSTED_ON",
-        "RESOLVES_TO", "ASSOCIATED_WITH", "COMMUNICATED_WITH", "MENTIONS",
+        "OWNS",
+        "EMPLOYED_BY",
+        "REGISTERED_BY",
+        "HOSTED_ON",
+        "RESOLVES_TO",
+        "ASSOCIATED_WITH",
+        "COMMUNICATED_WITH",
+        "MENTIONS",
         "SUBDOMAIN_OF",
     }
     assert {rt.value for rt in RelationshipType} == expected
@@ -28,9 +34,17 @@ def test_relationship_tablename():
 def test_relationship_columns():
     cols = {c.name for c in Relationship.__table__.columns}
     required = {
-        "id", "case_id", "src_entity_id", "dst_entity_id", "rel_type",
-        "confidence", "source_plugin", "attrs", "created_by",
-        "created_at", "deleted_at",
+        "id",
+        "case_id",
+        "src_entity_id",
+        "dst_entity_id",
+        "rel_type",
+        "confidence",
+        "source_plugin",
+        "attrs",
+        "created_by",
+        "created_at",
+        "deleted_at",
     }
     assert required <= cols, f"missing: {required - cols}"
 

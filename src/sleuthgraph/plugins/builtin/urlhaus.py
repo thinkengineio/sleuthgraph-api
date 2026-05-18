@@ -12,7 +12,7 @@ API docs: https://urlhaus-api.abuse.ch/
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -83,9 +83,7 @@ class UrlhausPlugin(OSINTPlugin):
                 # Either url_info exists (URL endpoint) or urls list non-empty (host endpoint)
                 url_info = parsed.get("url_info")
                 urls = parsed.get("urls")
-                if isinstance(url_info, dict) or (
-                    isinstance(urls, list) and len(urls) > 0
-                ):
+                if isinstance(url_info, dict) or (isinstance(urls, list) and len(urls) > 0):
                     malicious = True
 
         evidence = [
@@ -96,7 +94,7 @@ class UrlhausPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": endpoint,
                     "method": "POST",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "query_status": query_status,
                     "malicious": malicious,
                     "fetch_status": "ok",
@@ -126,9 +124,7 @@ class UrlhausPlugin(OSINTPlugin):
         resp.raise_for_status()
         raw = resp.content
         if len(raw) > MAX_RESPONSE_BYTES:
-            raise httpx.HTTPError(
-                f"urlhaus response exceeded {MAX_RESPONSE_BYTES} bytes"
-            )
+            raise httpx.HTTPError(f"urlhaus response exceeded {MAX_RESPONSE_BYTES} bytes")
         try:
             parsed: Any = json.loads(raw)
         except json.JSONDecodeError:

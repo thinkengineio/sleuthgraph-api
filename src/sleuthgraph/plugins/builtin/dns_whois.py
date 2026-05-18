@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -218,7 +218,7 @@ class DnsWhoisPlugin(OSINTPlugin):
                 reproducibility_spec={
                     "url": rdap_url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "dns_record_counts": counts,
                     "rdap_status": "ok" if rdap_ok else "unavailable",
                     "max_response_bytes": MAX_RESPONSE_BYTES,
@@ -227,16 +227,12 @@ class DnsWhoisPlugin(OSINTPlugin):
             )
         ]
 
-        return QueryResult(
-            entities=entities, relationships=relationships, evidence=evidence
-        )
+        return QueryResult(entities=entities, relationships=relationships, evidence=evidence)
 
     @staticmethod
     async def _try_resolve(domain: str, rdtype: str) -> list[str]:
         try:
-            answers = await dns.asyncresolver.resolve(
-                domain, rdtype, lifetime=DNS_LIFETIME_SECONDS
-            )
+            answers = await dns.asyncresolver.resolve(domain, rdtype, lifetime=DNS_LIFETIME_SECONDS)
         except _DNS_TOLERATED:
             return []
         except Exception:  # noqa: BLE001 — never let DNS noise crash plugin
@@ -251,9 +247,7 @@ class DnsWhoisPlugin(OSINTPlugin):
     @staticmethod
     async def _try_resolve_mx(domain: str) -> list[tuple[int, str]]:
         try:
-            answers = await dns.asyncresolver.resolve(
-                domain, "MX", lifetime=DNS_LIFETIME_SECONDS
-            )
+            answers = await dns.asyncresolver.resolve(domain, "MX", lifetime=DNS_LIFETIME_SECONDS)
         except _DNS_TOLERATED:
             return []
         except Exception:  # noqa: BLE001
@@ -271,9 +265,7 @@ class DnsWhoisPlugin(OSINTPlugin):
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
     )
-    async def _fetch_rdap(
-        self, client: httpx.AsyncClient, url: str
-    ) -> tuple[bytes, bool]:
+    async def _fetch_rdap(self, client: httpx.AsyncClient, url: str) -> tuple[bytes, bool]:
         """Streaming RDAP fetch with 10 MiB cap.
 
         Returns (raw_bytes, ok) where ok=True only when status 200 + parseable JSON.

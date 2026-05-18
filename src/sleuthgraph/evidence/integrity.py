@@ -19,6 +19,7 @@ from sleuthgraph.evidence.storage import EvidenceStorage
 @dataclass(frozen=True)
 class HashMismatch:
     """A single integrity violation."""
+
     ev_id: uuid.UUID
     case_id: uuid.UUID
     expected: str
@@ -26,7 +27,8 @@ class HashMismatch:
 
 
 async def verify_single(
-    ev: Evidence, storage: EvidenceStorage,
+    ev: Evidence,
+    storage: EvidenceStorage,
 ) -> HashMismatch | None:
     """Re-read the blob from storage and compare its SHA-256 to the DB record.
 
@@ -45,7 +47,8 @@ async def verify_single(
 
 
 async def sweep_all(
-    session: AsyncSession, storage: EvidenceStorage,
+    session: AsyncSession,
+    storage: EvidenceStorage,
 ) -> list[HashMismatch]:
     """Check every evidence record. Returns only mismatches (empty = healthy)."""
     q = select(Evidence).order_by(Evidence.timestamp.asc())

@@ -1,7 +1,7 @@
 """RelationshipRepository: case-scoped CRUD (no update) with AGE mirror."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +21,10 @@ class RelationshipRepository:
         self.session = session
 
     async def _assert_endpoints_in_case(
-        self, case_id: uuid.UUID, src_id: uuid.UUID, dst_id: uuid.UUID,
+        self,
+        case_id: uuid.UUID,
+        src_id: uuid.UUID,
+        dst_id: uuid.UUID,
     ) -> None:
         q = select(Entity.id).where(
             Entity.case_id == case_id,
@@ -31,9 +34,7 @@ class RelationshipRepository:
         rows = list((await self.session.execute(q)).scalars())
         expected = {src_id, dst_id}  # allows self-loop: set has one element
         if expected - set(rows):
-            raise EndpointNotInCaseError(
-                f"src/dst entities not found in case {case_id}"
-            )
+            raise EndpointNotInCaseError(f"src/dst entities not found in case {case_id}")
 
     async def create(
         self,
@@ -44,7 +45,9 @@ class RelationshipRepository:
         commit: bool = True,
     ) -> Relationship:
         await self._assert_endpoints_in_case(
-            case_id, data.src_entity_id, data.dst_entity_id,
+            case_id,
+            data.src_entity_id,
+            data.dst_entity_id,
         )
         rel = Relationship(
             case_id=case_id,
@@ -96,7 +99,9 @@ class RelationshipRepository:
         return rel, True
 
     async def get(
-        self, rel_id: uuid.UUID, case_id: uuid.UUID,
+        self,
+        rel_id: uuid.UUID,
+        case_id: uuid.UUID,
     ) -> Relationship | None:
         q = select(Relationship).where(
             Relationship.id == rel_id,
@@ -128,12 +133,14 @@ class RelationshipRepository:
         return list((await self.session.execute(q)).scalars())
 
     async def soft_delete(
-        self, rel_id: uuid.UUID, case_id: uuid.UUID,
+        self,
+        rel_id: uuid.UUID,
+        case_id: uuid.UUID,
     ) -> bool:
         rel = await self.get(rel_id, case_id)
         if rel is None:
             return False
-        rel.deleted_at = datetime.now(timezone.utc)
+        rel.deleted_at = datetime.now(UTC)
         await self.session.flush()
         try:
             await delete_edge(self.session, rel.id)

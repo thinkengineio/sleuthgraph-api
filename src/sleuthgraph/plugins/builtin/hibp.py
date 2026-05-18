@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 import httpx
@@ -51,9 +51,7 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024  # 10 MiB
 # RFC-5321-lite email regex: accepts common local-part characters and a
 # multi-label domain.  Strict enough to reject script injection, path
 # traversal, and query-string injection attempts.
-_EMAIL_RE = re.compile(
-    r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
-)
+_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
 
 class HIBPPlugin(BYOKPlugin):
@@ -102,8 +100,7 @@ class HIBPPlugin(BYOKPlugin):
         for breach in breaches:
             if isinstance(breach, dict):
                 data_classes.extend(
-                    dc for dc in breach.get("DataClasses", [])
-                    if isinstance(dc, str)
+                    dc for dc in breach.get("DataClasses", []) if isinstance(dc, str)
                 )
         # Deduplicate while preserving insertion order.
         seen: set[str] = set()
@@ -121,7 +118,7 @@ class HIBPPlugin(BYOKPlugin):
                 reproducibility_spec={
                     "url": url,
                     "method": "GET",
-                    "queried_at": datetime.now(timezone.utc).isoformat(),
+                    "queried_at": datetime.now(UTC).isoformat(),
                     "breach_count": len(breaches),
                     "breach_names": breach_names,
                     "data_classes": unique_data_classes,

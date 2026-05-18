@@ -5,7 +5,7 @@ in the same transaction so the graph view stays consistent.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +49,9 @@ class EntityRepository:
         return entity
 
     async def get(
-        self, entity_id: uuid.UUID, case_id: uuid.UUID,
+        self,
+        entity_id: uuid.UUID,
+        case_id: uuid.UUID,
     ) -> Entity | None:
         q = select(Entity).where(
             Entity.id == entity_id,
@@ -61,7 +63,7 @@ class EntityRepository:
     async def list_for_case(
         self,
         case_id: uuid.UUID,
-        type: str | None = None,
+        entity_type: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[Entity]:
@@ -69,8 +71,8 @@ class EntityRepository:
             Entity.case_id == case_id,
             Entity.deleted_at.is_(None),
         )
-        if type:
-            q = q.where(Entity.type == type)
+        if entity_type:
+            q = q.where(Entity.type == entity_type)
         q = q.order_by(Entity.created_at.desc()).limit(limit).offset(offset)
         return list((await self.session.execute(q)).scalars())
 
@@ -97,12 +99,14 @@ class EntityRepository:
         return entity
 
     async def soft_delete(
-        self, entity_id: uuid.UUID, case_id: uuid.UUID,
+        self,
+        entity_id: uuid.UUID,
+        case_id: uuid.UUID,
     ) -> bool:
         entity = await self.get(entity_id, case_id)
         if entity is None:
             return False
-        entity.deleted_at = datetime.now(timezone.utc)
+        entity.deleted_at = datetime.now(UTC)
         await self.session.flush()
         try:
             await delete_vertex(self.session, entity.id)
