@@ -8,6 +8,7 @@ Output: one DOMAIN EntityProposal per unique subdomain found;
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from datetime import datetime, timezone
@@ -122,6 +123,19 @@ class CrtShPlugin(OSINTPlugin):
         async with client.stream(
             "GET", url, headers={"User-Agent": "sleuthgraph/0.1"},
         ) as resp:
+            if resp.status_code == 429:
+                delay = 0
+                retry_after = resp.headers.get("Retry-After", "")
+                try:
+                    delay = min(int(retry_after), 30)
+                except (ValueError, TypeError):
+                    delay = 0
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                # Raise a retryable error so tenacity retries the request.
+                raise httpx.TransportError(
+                    f"crt.sh 429 rate-limited; slept {delay}s"
+                )
             resp.raise_for_status()
             async for chunk in resp.aiter_bytes():
                 total += len(chunk)
