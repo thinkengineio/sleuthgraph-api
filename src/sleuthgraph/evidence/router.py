@@ -1,5 +1,6 @@
 """HTTP router for /cases/{case_id}/evidence (append-only: POST + GET only)."""
 
+import logging
 import uuid
 
 from fastapi import (
@@ -29,6 +30,8 @@ from sleuthgraph.evidence.schemas import (
     EvidenceRead,
 )
 from sleuthgraph.evidence.storage import EvidenceStorage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cases/{case_id}/evidence", tags=["evidence"])
 
@@ -141,6 +144,17 @@ async def get_evidence_blob(
     ev = await repo.get(ev_id, case_id)
     if ev is None:
         raise HTTPException(status_code=404, detail="not found")
+
+    logger.info(
+        "evidence blob accessed",
+        extra={
+            "user_id": str(user.id),
+            "evidence_id": str(ev_id),
+            "case_id": str(case_id),
+            "action": "evidence.blob.access",
+        },
+    )
+
     ttl = get_settings().evidence_presigned_ttl_seconds
     url = await repo.storage.presign_get(ev.response_uri, expires_in=ttl)
     return RedirectResponse(url=url, status_code=307)
