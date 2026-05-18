@@ -1,7 +1,5 @@
 """Guard: signup route is NOT mounted by default."""
 
-from importlib import reload
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -14,9 +12,13 @@ async def nosignup_client(monkeypatch, test_engine):
     """Fresh app with signup disabled (the default)."""
     monkeypatch.delenv("AUTH_ALLOW_SIGNUP", raising=False)
 
-    import sleuthgraph.main as main_module
-    reload(main_module)
-    app = main_module.app
+    from sleuthgraph.config import get_settings
+
+    get_settings.cache_clear()
+
+    from sleuthgraph.main import create_app
+
+    app = create_app()
 
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
 

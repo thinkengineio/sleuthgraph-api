@@ -1,7 +1,5 @@
 """Tests for /auth/oidc-status endpoint."""
 
-from importlib import reload
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -16,9 +14,13 @@ async def test_oidc_status_disabled_when_unset(monkeypatch, test_engine):
     monkeypatch.delenv("OIDC_CLIENT_ID", raising=False)
     monkeypatch.delenv("OIDC_CLIENT_SECRET", raising=False)
 
-    import sleuthgraph.main as main_module
-    reload(main_module)
-    app = main_module.app
+    from sleuthgraph.config import get_settings
+
+    get_settings.cache_clear()
+
+    from sleuthgraph.main import create_app
+
+    app = create_app()
 
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
 
@@ -50,9 +52,13 @@ async def test_oidc_status_enabled_when_all_set(monkeypatch, test_engine):
     monkeypatch.setenv("OIDC_CLIENT_SECRET", "csec")
     monkeypatch.setenv("OIDC_REDIRECT_URL", "https://app.example.com/auth/oidc/callback")
 
-    import sleuthgraph.main as main_module
-    reload(main_module)
-    app = main_module.app
+    from sleuthgraph.config import get_settings
+
+    get_settings.cache_clear()
+
+    from sleuthgraph.main import create_app
+
+    app = create_app()
 
     TestSession = async_sessionmaker(test_engine, expire_on_commit=False)
 

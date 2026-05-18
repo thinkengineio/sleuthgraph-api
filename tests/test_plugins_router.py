@@ -65,18 +65,18 @@ def _patch_age(monkeypatch, request):
 
 @pytest.fixture
 async def signup_with_plugins(signup_client):
-    import sleuthgraph.main as main_module
     from sleuthgraph.evidence.deps import get_storage
 
+    app = signup_client._test_app  # type: ignore[attr-defined]
     fake_reg = PluginRegistry([_FakePlugin()])
     fake_store = _FakeStorage()
-    main_module.app.dependency_overrides[get_registry] = lambda: fake_reg
-    main_module.app.dependency_overrides[get_storage] = lambda: fake_store
+    app.dependency_overrides[get_registry] = lambda: fake_reg
+    app.dependency_overrides[get_storage] = lambda: fake_store
     try:
         yield signup_client, fake_reg, fake_store
     finally:
-        main_module.app.dependency_overrides.pop(get_registry, None)
-        main_module.app.dependency_overrides.pop(get_storage, None)
+        app.dependency_overrides.pop(get_registry, None)
+        app.dependency_overrides.pop(get_storage, None)
 
 
 async def _login(client, email):

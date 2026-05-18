@@ -100,13 +100,14 @@ async def signup_client(monkeypatch, test_engine):
     """Variant of ``client`` that has AUTH_ALLOW_SIGNUP=true when the app is constructed."""
     monkeypatch.setenv("AUTH_ALLOW_SIGNUP", "true")
 
-    # Force a fresh app so create_app() picks up the env change
-    from importlib import reload
+    from sleuthgraph.config import get_settings
 
-    import sleuthgraph.main as main_module
+    get_settings.cache_clear()
 
-    reload(main_module)
-    app = main_module.app
+    # Build a fresh app via the factory so create_app() picks up the env change.
+    from sleuthgraph.main import create_app
+
+    app = create_app()
 
     # Disable Secure flag on the cookie transport so httpx over http://test
     # actually sends the session cookie back on subsequent requests.
@@ -131,6 +132,9 @@ async def signup_client(monkeypatch, test_engine):
     transport = ASGITransport(app=app)
     try:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # Attach the app so downstream fixtures (e.g. signup_with_storage)
+            # can set dependency overrides on the correct instance.
+            ac._test_app = app  # type: ignore[attr-defined]
             yield ac
     finally:
         app.dependency_overrides.clear()

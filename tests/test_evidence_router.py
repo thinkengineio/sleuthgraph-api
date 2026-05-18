@@ -49,15 +49,15 @@ def _patch_age_for_sqlite(monkeypatch, request):
 @pytest.fixture
 async def signup_client_with_fake_storage(signup_client):
     """Wrap signup_client so the evidence router uses FakeStorage."""
-    import sleuthgraph.main as main_module
     from sleuthgraph.evidence.deps import get_storage as _get_storage
 
+    app = signup_client._test_app  # type: ignore[attr-defined]
     fake = _FakeStorage()
-    main_module.app.dependency_overrides[_get_storage] = lambda: fake
+    app.dependency_overrides[_get_storage] = lambda: fake
     try:
         yield signup_client, fake
     finally:
-        main_module.app.dependency_overrides.pop(_get_storage, None)
+        app.dependency_overrides.pop(_get_storage, None)
 
 
 async def _register_and_login(client: AsyncClient, email: str):
