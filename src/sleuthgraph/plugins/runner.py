@@ -107,6 +107,7 @@ class PluginRunner:
         credentials: dict | None = None,
         existing_run: PluginRun | None = None,
     ) -> RunResult:
+        """Public entry point: validate, create audit row, execute, persist."""
         plugin = self.registry.get(plugin_name)
 
         # Premium-plugin license gate — refuses on Community installs.
@@ -149,51 +150,14 @@ class PluginRunner:
                 await self.session.commit()
 
         try:
-            # BYOK credential lookup: if the plugin needs a user-provided key,
-            # fetch it from the encrypted vault. Done inside the try block so
-            # a missing credential produces a proper failed audit row.
-            if plugin.requires_credentials and credentials is None and created_by is not None:
-                from sleuthgraph.credentials.repository import get_credential
-
-                decrypted = await get_credential(self.session, created_by, plugin.name)
-                if decrypted is None:
-                    raise PluginCredentialMissingError(
-                        f"No API key stored for {plugin.name}. "
-                        f"Store one via POST /credentials/{plugin.name}"
-                    )
-                credentials = {"api_key": decrypted}
-
-            async with httpx.AsyncClient(timeout=plugin.http_timeout_seconds) as http_client:
-                ctx = PluginContext(
-                    case_id=str(case_id),
-                    input_entity=input_entity,
-                    http_client=http_client,
-                )
-                result: QueryResult = await plugin.query(
-                    input_entity, credentials, ctx,
-                )
-
-            total = len(result.entities) + len(result.relationships) + len(result.evidence)
-            if total > MAX_PROPOSALS_PER_RUN:
-                raise PluginExecutionError(
-                    f"plugin {plugin.name} returned {total} proposals (exceeds {MAX_PROPOSALS_PER_RUN})"
-                )
-
-            entities_created, rels_created, evidence_created = await self._persist(
-                case_id, input_entity, created_by, plugin.full_name, result,
+            # Credential resolution is inside the try block so a missing
+            # credential produces a proper failed audit row.
+            credentials = await self._resolve_credentials(
+                plugin, credentials, created_by,
             )
-
-            # Audit row: succeeded
-            run.status = "succeeded"
-            run.finished_at = datetime.now(timezone.utc)
-            run.entities_created_count = len(entities_created)
-            run.relationships_created_count = len(rels_created)
-            run.evidence_count = len(evidence_created)
-            await self.session.commit()
-            await self.session.refresh(run)
-
-            return RunResult(run, entities_created, rels_created, evidence_created)
-
+            return await self._execute_plugin(
+                plugin, run, case_id, input_entity, created_by, credentials,
+            )
         except Exception as e:
             log.exception("plugin %s failed on case %s", plugin.name, case_id)
             # Ensure audit row captures the failure
@@ -208,6 +172,66 @@ class PluginRunner:
             if isinstance(e, PluginExecutionError):
                 raise
             raise PluginExecutionError(f"plugin {plugin.name} failed: {e}") from e
+
+    async def _resolve_credentials(
+        self,
+        plugin,
+        credentials: dict | None,
+        created_by: uuid.UUID | None,
+    ) -> dict | None:
+        """Fetch BYOK credentials from the encrypted vault when needed."""
+        if plugin.requires_credentials and credentials is None and created_by is not None:
+            from sleuthgraph.credentials.repository import get_credential
+
+            decrypted = await get_credential(self.session, created_by, plugin.name)
+            if decrypted is None:
+                raise PluginCredentialMissingError(
+                    f"No API key stored for {plugin.name}. "
+                    f"Store one via POST /credentials/{plugin.name}"
+                )
+            return {"api_key": decrypted}
+        return credentials
+
+    async def _execute_plugin(
+        self,
+        plugin,
+        run: PluginRun,
+        case_id: uuid.UUID,
+        input_entity: Entity,
+        created_by: uuid.UUID | None,
+        credentials: dict | None,
+    ) -> RunResult:
+        """Run the plugin query, persist results, and update the audit row."""
+        async with httpx.AsyncClient(timeout=plugin.http_timeout_seconds) as http_client:
+            ctx = PluginContext(
+                case_id=str(case_id),
+                input_entity=input_entity,
+                http_client=http_client,
+            )
+            result: QueryResult = await plugin.query(
+                input_entity, credentials, ctx,
+            )
+
+        total = len(result.entities) + len(result.relationships) + len(result.evidence)
+        if total > MAX_PROPOSALS_PER_RUN:
+            raise PluginExecutionError(
+                f"plugin {plugin.name} returned {total} proposals (exceeds {MAX_PROPOSALS_PER_RUN})"
+            )
+
+        entities_created, rels_created, evidence_created = await self._persist(
+            case_id, input_entity, created_by, plugin.full_name, result,
+        )
+
+        # Audit row: succeeded
+        run.status = "succeeded"
+        run.finished_at = datetime.now(timezone.utc)
+        run.entities_created_count = len(entities_created)
+        run.relationships_created_count = len(rels_created)
+        run.evidence_count = len(evidence_created)
+        await self.session.commit()
+        await self.session.refresh(run)
+
+        return RunResult(run, entities_created, rels_created, evidence_created)
 
     async def _persist(
         self,
