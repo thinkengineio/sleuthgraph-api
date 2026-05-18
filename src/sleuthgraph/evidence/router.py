@@ -21,6 +21,7 @@ from sleuthgraph.cases.repository import CaseRepository
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_session
 from sleuthgraph.evidence.deps import get_storage
+from sleuthgraph.evidence.hashing import hash_bytes
 from sleuthgraph.evidence.repository import EvidenceRepository
 from sleuthgraph.evidence.schemas import (
     EvidenceCreate,
@@ -143,3 +144,26 @@ async def get_evidence_blob(
     ttl = get_settings().evidence_presigned_ttl_seconds
     url = await repo.storage.presign_get(ev.response_uri, expires_in=ttl)
     return RedirectResponse(url=url, status_code=307)
+
+
+@router.post("/{ev_id}/verify")
+async def verify_evidence_hash(
+    case_id: uuid.UUID,
+    ev_id: uuid.UUID,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_session),
+    repo: EvidenceRepository = Depends(_build_repo),
+) -> dict:
+    """Re-read the blob from storage, compute SHA-256, compare to DB record."""
+    await _verify_case_ownership(case_id, user, session)
+    ev = await repo.get(ev_id, case_id)
+    if ev is None:
+        raise HTTPException(status_code=404, detail="not found")
+
+    blob = await repo.storage.get(ev.response_uri)
+    actual = hash_bytes(blob)
+    return {
+        "verified": actual == ev.response_hash,
+        "expected": ev.response_hash,
+        "actual": actual,
+    }

@@ -269,3 +269,95 @@ async def test_upload_at_limit_succeeds(signup_client_with_fake_storage, monkeyp
         data={"metadata": json.dumps({"query": "ok"})},
     )
     assert r.status_code == 201
+
+
+# ---------------------------------------------------------------------------
+# Verify endpoint tests (#30)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_verify_intact_evidence(signup_client_with_fake_storage):
+    """POST /verify returns verified=true when blob matches stored hash."""
+    signup_client, storage = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "verify-ok@example.com")
+    case_id = await _create_case(signup_client)
+
+    payload = b'{"observed":"y"}'
+    metadata = json.dumps({"query": "test-verify", "source_plugin": "manual"})
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("v.json", io.BytesIO(payload), "application/json")},
+        data={"metadata": metadata},
+    )
+    assert r.status_code == 201
+    ev_id = r.json()["id"]
+
+    r = await signup_client.post(f"/cases/{case_id}/evidence/{ev_id}/verify")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["verified"] is True
+    assert body["expected"] == body["actual"]
+
+
+@pytest.mark.asyncio
+async def test_verify_tampered_evidence(signup_client_with_fake_storage):
+    """POST /verify returns verified=false when blob has been tampered with."""
+    signup_client, storage = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "verify-bad@example.com")
+    case_id = await _create_case(signup_client)
+
+    payload = b"original-content"
+    metadata = json.dumps({"query": "test-tamper", "source_plugin": "manual"})
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("t.bin", io.BytesIO(payload), "application/octet-stream")},
+        data={"metadata": metadata},
+    )
+    assert r.status_code == 201
+    body = r.json()
+    ev_id = body["id"]
+    response_uri = body["response_uri"]
+
+    # Tamper with the blob in fake storage
+    storage._blobs[response_uri] = b"tampered-content"
+
+    r = await signup_client.post(f"/cases/{case_id}/evidence/{ev_id}/verify")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["verified"] is False
+    assert body["expected"] != body["actual"]
+
+
+@pytest.mark.asyncio
+async def test_verify_other_users_evidence_returns_404(signup_client_with_fake_storage):
+    """Verify endpoint enforces case ownership — other user gets 404."""
+    signup_client, _ = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "vown1@example.com")
+    case_id = await _create_case(signup_client)
+
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence",
+        files={"file": ("a.bin", io.BytesIO(b"a"), "application/octet-stream")},
+        data={"metadata": json.dumps({"query": "q"})},
+    )
+    ev_id = r.json()["id"]
+
+    await signup_client.post("/auth/logout")
+    await _register_and_login(signup_client, "vown2@example.com")
+
+    r = await signup_client.post(f"/cases/{case_id}/evidence/{ev_id}/verify")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_verify_nonexistent_evidence_returns_404(signup_client_with_fake_storage):
+    """Verify against a bogus ev_id returns 404."""
+    signup_client, _ = signup_client_with_fake_storage
+    await _register_and_login(signup_client, "vnone@example.com")
+    case_id = await _create_case(signup_client)
+
+    r = await signup_client.post(
+        f"/cases/{case_id}/evidence/{uuid.uuid4()}/verify",
+    )
+    assert r.status_code == 404

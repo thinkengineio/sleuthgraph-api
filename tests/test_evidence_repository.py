@@ -188,6 +188,46 @@ async def test_repository_has_no_update_or_delete_methods(sqlite_db):
     assert not hasattr(repo, "delete")
 
 
+# --- integrity sweeper tests ---
+
+
+@pytest.mark.asyncio
+async def test_sweep_all_healthy(sqlite_db, seeded):
+    """sweep_all returns empty list when all blobs match their stored hashes."""
+    _, case = seeded
+    storage = _FakeStorage()
+    repo = EvidenceRepository(sqlite_db, storage)
+
+    await repo.create(case.id, None, EvidenceCreate(query="a"), b"aaa", None)
+    await repo.create(case.id, None, EvidenceCreate(query="b"), b"bbb", None)
+
+    from sleuthgraph.evidence.integrity import sweep_all
+    mismatches = await sweep_all(sqlite_db, storage)
+    assert mismatches == []
+
+
+@pytest.mark.asyncio
+async def test_sweep_all_detects_tampered_blob(sqlite_db, seeded):
+    """sweep_all returns the tampered record when a blob has been modified."""
+    _, case = seeded
+    storage = _FakeStorage()
+    repo = EvidenceRepository(sqlite_db, storage)
+
+    ev_ok = await repo.create(case.id, None, EvidenceCreate(query="ok"), b"ok-data", None)
+    ev_bad = await repo.create(case.id, None, EvidenceCreate(query="bad"), b"original", None)
+
+    # Tamper with one blob
+    storage._blobs[ev_bad.response_uri] = b"tampered"
+
+    from sleuthgraph.evidence.integrity import sweep_all
+    mismatches = await sweep_all(sqlite_db, storage)
+    assert len(mismatches) == 1
+    assert mismatches[0].ev_id == ev_bad.id
+    assert mismatches[0].case_id == case.id
+    assert mismatches[0].expected == ev_bad.response_hash
+    assert mismatches[0].actual != ev_bad.response_hash
+
+
 # --- integration test (MinIO-backed) ---
 
 @pytest.fixture
