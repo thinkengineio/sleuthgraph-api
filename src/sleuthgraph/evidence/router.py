@@ -140,5 +140,6 @@ async def get_evidence_blob(
     ev = await repo.get(ev_id, case_id)
     if ev is None:
         raise HTTPException(status_code=404, detail="not found")
-    url = await repo.storage.presign_get(ev.response_uri, expires_in=300)
+    ttl = get_settings().evidence_presigned_ttl_seconds
+    url = await repo.storage.presign_get(ev.response_uri, expires_in=ttl)
     return RedirectResponse(url=url, status_code=307)

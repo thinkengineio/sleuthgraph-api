@@ -85,6 +85,12 @@ class Settings(BaseSettings):
         ge=1,
         description="Max evidence upload size in bytes (default 50 MiB).",
     )
+    evidence_presigned_ttl_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=3600,
+        description="Presigned URL expiry for evidence blob downloads (default 300s, max 3600s).",
+    )
 
     # AI (optional — only required for Phase 10 features)
     anthropic_api_key: str | None = None
