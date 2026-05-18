@@ -25,12 +25,8 @@ from sleuthgraph.evidence.repository import EvidenceRepository
 from sleuthgraph.evidence.schemas import EvidenceCreate
 from sleuthgraph.evidence.storage import EvidenceStorage
 from sleuthgraph.plugins.base import (
-    EntityProposal,
-    EvidenceProposal,
-    OSINTPlugin,
     PluginContext,
     QueryResult,
-    RelationshipProposal,
 )
 from sleuthgraph.plugins.models import PluginRun
 from sleuthgraph.plugins.registry import PluginRegistry

@@ -7,10 +7,10 @@ from fastapi_users_db_sqlalchemy.generics import GUID
 from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from sleuthgraph.db import Base
-from sleuthgraph.cases.models import Case  # noqa: F401
-from sleuthgraph.entities.models import Entity  # noqa: F401
 from sleuthgraph.auth.models import User  # noqa: F401
+from sleuthgraph.cases.models import Case  # noqa: F401
+from sleuthgraph.db import Base
+from sleuthgraph.entities.models import Entity  # noqa: F401
 
 
 class Evidence(Base):

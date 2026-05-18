@@ -22,8 +22,8 @@ from sleuthgraph.plugins.repository import PluginRunRepository
 from sleuthgraph.plugins.runner import (
     PluginCredentialMissingError,
     PluginExecutionError,
-    PluginTypeError,
     PluginRunner,
+    PluginTypeError,
 )
 from sleuthgraph.plugins.schemas import (
     PluginInfo,

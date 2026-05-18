@@ -5,8 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from sleuthgraph.relationships.types import RelationshipType
 from sleuthgraph.graph.validators import _validate_attrs
+from sleuthgraph.relationships.types import RelationshipType
 
 
 class RelationshipCreate(BaseModel):

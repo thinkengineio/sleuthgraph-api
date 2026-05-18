@@ -24,7 +24,7 @@ sleuthgraph.io calls ``register_edition_provider`` on startup.
 from __future__ import annotations
 
 import logging
-from typing import Callable, Protocol
+from typing import Protocol
 
 log = logging.getLogger(__name__)
 

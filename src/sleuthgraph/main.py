@@ -16,16 +16,16 @@ from sleuthgraph.auth.oidc import router as oidc_router
 from sleuthgraph.auth.ping import router as auth_ping_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.cases.router import router as cases_router
+from sleuthgraph.config import get_settings
 from sleuthgraph.credentials.router import router as credentials_router
+from sleuthgraph.db import get_engine
 from sleuthgraph.entities.router import router as entities_router
 from sleuthgraph.evidence.export import router as evidence_export_router
 from sleuthgraph.evidence.router import router as evidence_router
 from sleuthgraph.graph.router import router as graph_router
-from sleuthgraph.plugins.router import registry_router as plugin_registry_router
 from sleuthgraph.plugins.router import case_router as plugin_case_router
+from sleuthgraph.plugins.router import registry_router as plugin_registry_router
 from sleuthgraph.relationships.router import router as relationships_router
-from sleuthgraph.config import get_settings
-from sleuthgraph.db import get_engine
 from sleuthgraph.routers import health
 
 
