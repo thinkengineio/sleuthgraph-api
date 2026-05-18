@@ -81,7 +81,7 @@ async def user(db):
 @pytest.mark.asyncio
 async def test_store_and_retrieve_round_trip(db, user):
     """Store a key, retrieve it; the decrypted value must match the original."""
-    original = "sk-abc123-test-key"
+    original = "test-credential-abc123"
     await store_credential(db, user.id, "virustotal", original)
     await db.commit()
 
