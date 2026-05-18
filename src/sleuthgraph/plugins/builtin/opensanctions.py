@@ -21,6 +21,7 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
     wait_exponential,
 )
 
@@ -89,7 +90,7 @@ class OpenSanctionsPlugin(OSINTPlugin):
         return QueryResult(evidence=evidence)
 
     @retry(
-        stop=stop_after_attempt(3),
+        stop=(stop_after_attempt(3) | stop_after_delay(30)),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((httpx.TransportError, httpx.TimeoutException)),
         reraise=True,
