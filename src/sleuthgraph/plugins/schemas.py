@@ -17,6 +17,11 @@ class PluginInfo(BaseModel):
     requires_credentials: bool
 
 
+class RunPluginRequest(BaseModel):
+    """Typed request body for POST /cases/{id}/plugins/{name}/run."""
+    input_entity_id: uuid.UUID
+
+
 class PluginRunRead(BaseModel):
     """Audit row read shape for /plugins/runs listings."""
     model_config = ConfigDict(from_attributes=True)

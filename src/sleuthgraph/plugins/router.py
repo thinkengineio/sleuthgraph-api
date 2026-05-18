@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,7 @@ from sleuthgraph.plugins.schemas import (
     PluginInfo,
     PluginRunList,
     PluginRunRead,
+    RunPluginRequest,
 )
 from sleuthgraph.relationships.schemas import RelationshipRead
 
@@ -80,7 +81,7 @@ async def _verify_case_ownership(case_id, user, session):
 async def run_plugin(
     case_id: uuid.UUID,
     plugin_name: str,
-    body: dict = Body(...),
+    body: RunPluginRequest,
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_session),
     registry: PluginRegistry = Depends(get_registry),
@@ -88,18 +89,9 @@ async def run_plugin(
 ) -> JSONResponse:
     await _verify_case_ownership(case_id, user, session)
 
-    # Validate body
-    input_entity_id_raw = body.get("input_entity_id")
-    if not input_entity_id_raw:
-        raise HTTPException(status_code=422, detail="input_entity_id is required")
-    try:
-        input_entity_id = uuid.UUID(str(input_entity_id_raw))
-    except ValueError:
-        raise HTTPException(status_code=422, detail="input_entity_id must be a UUID")
-
     # Load input entity (must be in this case)
     entity_repo = EntityRepository(session)
-    input_entity = await entity_repo.get(input_entity_id, case_id)
+    input_entity = await entity_repo.get(body.input_entity_id, case_id)
     if input_entity is None:
         raise HTTPException(status_code=404, detail="input entity not in case")
 
