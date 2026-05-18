@@ -9,7 +9,7 @@ async def test_register_login_me_logout(signup_client: AsyncClient):
     # Register
     r = await signup_client.post(
         "/auth/register",
-        json={"email": "alice@example.com", "password": "hunter222", "name": "Alice"},
+        json={"email": "alice@example.com", "password": "hunter222hunt", "name": "Alice"},
     )
     assert r.status_code == 201, r.text
     body = r.json()
@@ -19,7 +19,7 @@ async def test_register_login_me_logout(signup_client: AsyncClient):
     # Login (form-encoded, OAuth2 password flow)
     r = await signup_client.post(
         "/auth/login",
-        data={"username": "alice@example.com", "password": "hunter222"},
+        data={"username": "alice@example.com", "password": "hunter222hunt"},
     )
     assert r.status_code in (200, 204), r.text
 

@@ -28,11 +28,11 @@ def _patch_age_for_sqlite(monkeypatch, request):
 async def _register_and_login(client: AsyncClient, email: str):
     r = await client.post(
         "/auth/register",
-        json={"email": email, "password": "hunter222", "name": email.split("@")[0]},
+        json={"email": email, "password": "hunter222hunt", "name": email.split("@")[0]},
     )
     assert r.status_code == 201
     r = await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222"},
+        "/auth/login", data={"username": email, "password": "hunter222hunt"},
     )
     assert r.status_code in (200, 204)
 

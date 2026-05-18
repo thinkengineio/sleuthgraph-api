@@ -24,9 +24,45 @@ async def test_validate_password_rejects_short():
 
 
 @pytest.mark.asyncio
-async def test_validate_password_accepts_8_or_more():
+async def test_validate_password_rejects_under_12():
+    """Passwords shorter than 12 characters are rejected."""
     mgr = UserManager(user_db=None)
-    await mgr.validate_password("longenough", user=None)  # should not raise
+    with pytest.raises(InvalidPasswordException):
+        await mgr.validate_password("elevenchar!", user=None)  # 11 chars
+
+
+@pytest.mark.asyncio
+async def test_validate_password_accepts_12_or_more():
+    mgr = UserManager(user_db=None)
+    await mgr.validate_password("longenoughpw!", user=None)  # 13 chars, should not raise
+
+
+@pytest.mark.asyncio
+async def test_validate_password_rejects_breached(monkeypatch):
+    """When HIBP reports the password as breached, reject it."""
+
+    async def _always_pwned(_pw: str) -> bool:
+        return True
+
+    monkeypatch.setattr("sleuthgraph.auth.manager._is_password_pwned", _always_pwned)
+
+    mgr = UserManager(user_db=None)
+    with pytest.raises(InvalidPasswordException) as exc_info:
+        await mgr.validate_password("longenoughpw!", user=None)
+    assert "data breach" in exc_info.value.reason
+
+
+@pytest.mark.asyncio
+async def test_validate_password_allows_clean(monkeypatch):
+    """When HIBP reports the password as clean, allow it."""
+
+    async def _never_pwned(_pw: str) -> bool:
+        return False
+
+    monkeypatch.setattr("sleuthgraph.auth.manager._is_password_pwned", _never_pwned)
+
+    mgr = UserManager(user_db=None)
+    await mgr.validate_password("longenoughpw!", user=None)  # should not raise
 
 
 def test_manager_token_secrets_use_derived_subkeys():

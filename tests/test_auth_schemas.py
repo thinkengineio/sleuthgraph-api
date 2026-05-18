@@ -9,14 +9,14 @@ from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 
 
 def test_user_create_accepts_email_password_name():
-    uc = UserCreate(email="a@b.com", password="hunter222", name="Alice")
+    uc = UserCreate(email="a@b.com", password="hunter222hunt", name="Alice")
     assert uc.email == "a@b.com"
-    assert uc.password == "hunter222"
+    assert uc.password == "hunter222hunt"
     assert uc.name == "Alice"
 
 
 def test_user_create_name_optional():
-    uc = UserCreate(email="a@b.com", password="hunter222")
+    uc = UserCreate(email="a@b.com", password="hunter222hunt")
     assert uc.name is None
 
 
@@ -24,7 +24,7 @@ def test_user_create_requires_email_and_password():
     with pytest.raises(ValidationError):
         UserCreate(email="a@b.com")  # missing password
     with pytest.raises(ValidationError):
-        UserCreate(password="hunter222")  # missing email
+        UserCreate(password="hunter222hunt")  # missing email
 
 
 def test_user_read_has_id_email_name():

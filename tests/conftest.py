@@ -10,6 +10,11 @@ from sqlalchemy.pool import StaticPool
 from sleuthgraph.db import Base, get_engine, get_session, get_session_factory
 
 
+async def _hibp_always_false(_password: str) -> bool:
+    """Stub that always reports the password as not breached."""
+    return False
+
+
 @pytest.fixture(autouse=True)
 def _set_env(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
@@ -23,6 +28,11 @@ def _set_env(monkeypatch):
     get_settings.cache_clear()
     get_engine.cache_clear()
     get_session_factory.cache_clear()
+
+    # Prevent every test from hitting the real HIBP API.
+    monkeypatch.setattr(
+        "sleuthgraph.auth.manager._is_password_pwned", _hibp_always_false
+    )
     yield
     get_settings.cache_clear()
 

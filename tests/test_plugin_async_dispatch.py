@@ -104,9 +104,9 @@ async def signup_with_async_plugin(signup_client):
 async def _login(client, email):
     await client.post(
         "/auth/register",
-        json={"email": email, "password": "hunter222", "name": email.split("@")[0]},
+        json={"email": email, "password": "hunter222hunt", "name": email.split("@")[0]},
     )
-    await client.post("/auth/login", data={"username": email, "password": "hunter222"})
+    await client.post("/auth/login", data={"username": email, "password": "hunter222hunt"})
 
 
 async def _new_case(client):

@@ -27,7 +27,7 @@ async def test_bootstrap_skipped_when_env_missing(db_session, monkeypatch):
 @pytest.mark.asyncio
 async def test_bootstrap_creates_admin(db_session, monkeypatch):
     monkeypatch.setenv("AUTH_ADMIN_EMAIL", "admin@example.com")
-    monkeypatch.setenv("AUTH_ADMIN_PASSWORD", "adminpass1")
+    monkeypatch.setenv("AUTH_ADMIN_PASSWORD", "adminpass1234")
 
     await bootstrap_admin(session=db_session)
 
@@ -43,7 +43,7 @@ async def test_bootstrap_creates_admin(db_session, monkeypatch):
 @pytest.mark.asyncio
 async def test_bootstrap_idempotent(db_session, monkeypatch):
     monkeypatch.setenv("AUTH_ADMIN_EMAIL", "admin@example.com")
-    monkeypatch.setenv("AUTH_ADMIN_PASSWORD", "adminpass1")
+    monkeypatch.setenv("AUTH_ADMIN_PASSWORD", "adminpass1234")
 
     await bootstrap_admin(session=db_session)
     await bootstrap_admin(session=db_session)  # second call must not raise

@@ -15,12 +15,12 @@ async def test_ping_authed_returns_user_email(signup_client: AsyncClient):
     # Register + login via existing fixture
     r = await signup_client.post(
         "/auth/register",
-        json={"email": "pinguser@example.com", "password": "pingpass1", "name": "Pinger"},
+        json={"email": "pinguser@example.com", "password": "pingpass12345", "name": "Pinger"},
     )
     assert r.status_code == 201, r.text
     r = await signup_client.post(
         "/auth/login",
-        data={"username": "pinguser@example.com", "password": "pingpass1"},
+        data={"username": "pinguser@example.com", "password": "pingpass12345"},
     )
     assert r.status_code in (200, 204), r.text
 

@@ -41,7 +41,7 @@ async def nosignup_client(monkeypatch, test_engine):
 async def test_register_route_404_when_signup_disabled(nosignup_client: AsyncClient):
     r = await nosignup_client.post(
         "/auth/register",
-        json={"email": "bob@example.com", "password": "hunter222"},
+        json={"email": "bob@example.com", "password": "hunter222hunt"},
     )
     assert r.status_code == 404, (
         f"Expected 404 for disabled signup route, got {r.status_code}: {r.text}"
@@ -53,7 +53,7 @@ async def test_login_route_still_works_when_signup_disabled(nosignup_client: Asy
     # Without a valid user, login returns 400 (credentials bad) or 401 — but NOT 404.
     r = await nosignup_client.post(
         "/auth/login",
-        data={"username": "nobody@example.com", "password": "hunter222"},
+        data={"username": "nobody@example.com", "password": "hunter222hunt"},
     )
     assert r.status_code in (400, 401, 422), (
         f"Login should exist even when signup is disabled; got {r.status_code}"

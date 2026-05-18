@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 
-async def _register_and_login(client: AsyncClient, email: str, password: str = "hunter222"):
+async def _register_and_login(client: AsyncClient, email: str, password: str = "hunter222hunt"):
     r = await client.post(
         "/auth/register",
         json={"email": email, "password": password, "name": email.split("@")[0]},
