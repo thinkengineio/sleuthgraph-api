@@ -22,10 +22,10 @@ def _patch_age_for_sqlite(monkeypatch, request):
 async def _login(client: AsyncClient, email: str):
     await client.post(
         "/auth/register",
-        json={"email": email, "password": "hunter222", "name": email.split("@")[0]},
+        json={"email": email, "password": "hunter222hunt", "name": email.split("@")[0]},
     )
     await client.post(
-        "/auth/login", data={"username": email, "password": "hunter222"},
+        "/auth/login", data={"username": email, "password": "hunter222hunt"},
     )
 
 
@@ -52,7 +52,7 @@ async def test_empty_case_returns_empty_graph(signup_client: AsyncClient):
     r = await signup_client.get(f"/cases/{case_id}/graph")
     assert r.status_code == 200
     body = r.json()
-    assert body == {"vertices": [], "edges": []}
+    assert body == {"vertices": [], "edges": [], "truncated": False}
 
 
 @pytest.mark.asyncio

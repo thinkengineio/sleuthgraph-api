@@ -39,9 +39,13 @@ class GraphEdge(BaseModel):
     attrs: dict
 
 
+_GRAPH_LIMIT = 10_000
+
+
 class GraphDump(BaseModel):
     vertices: list[GraphVertex]
     edges: list[GraphEdge]
+    truncated: bool = False
 
 
 @router.get("", response_model=GraphDump)
@@ -59,9 +63,17 @@ async def get_graph(
     entity_repo = EntityRepository(session)
     rel_repo = RelationshipRepository(session)
 
-    # Fetch up to 10k of each — sensible MVP cap
-    entities = await entity_repo.list_for_case(case_id, limit=10_000, offset=0)
-    rels = await rel_repo.list_for_case(case_id, limit=10_000, offset=0)
+    # Fetch limit+1 so we can detect whether results were truncated
+    entities = await entity_repo.list_for_case(
+        case_id, limit=_GRAPH_LIMIT + 1, offset=0,
+    )
+    rels = await rel_repo.list_for_case(
+        case_id, limit=_GRAPH_LIMIT + 1, offset=0,
+    )
+
+    truncated = len(entities) > _GRAPH_LIMIT or len(rels) > _GRAPH_LIMIT
+    entities = entities[:_GRAPH_LIMIT]
+    rels = rels[:_GRAPH_LIMIT]
 
     vertices = [
         GraphVertex(
@@ -82,4 +94,4 @@ async def get_graph(
         )
         for r in rels
     ]
-    return GraphDump(vertices=vertices, edges=edges)
+    return GraphDump(vertices=vertices, edges=edges, truncated=truncated)
