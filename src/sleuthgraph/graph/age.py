@@ -102,7 +102,7 @@ async def run_cypher(
         if delim not in cypher:
             break
     else:
-        # Should never happen — 48-bit random collision 4x in a row.
+        # Should never happen — 96-bit random collision 4x in a row.
         raise RuntimeError("could not find a safe dollar-quote tag")
 
     sql = f"SELECT * FROM cypher('{GRAPH_NAME}', {delim} {cypher} {delim}) AS ({return_col} agtype);"
