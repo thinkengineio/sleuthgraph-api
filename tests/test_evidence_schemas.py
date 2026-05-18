@@ -31,12 +31,12 @@ def test_create_accepts_full_shape():
     eid = uuid.uuid4()
     e = EvidenceCreate(
         entity_id=eid,
-        source_plugin="crt.sh@0.1.0",
+        source_plugin="crtsh",
         query="lookup example.com",
         reproducibility_spec={"url": "https://crt.sh/...", "method": "GET"},
     )
     assert e.entity_id == eid
-    assert e.source_plugin == "crt.sh@0.1.0"
+    assert e.source_plugin == "crtsh"
     assert e.reproducibility_spec["url"] == "https://crt.sh/..."
 
 

@@ -170,11 +170,11 @@ async def test_list_filter_by_source_plugin(sqlite_db, seeded):
     await repo.create(case.id, None, EvidenceCreate(query="manual-1"),
                        b"a", None)
     await repo.create(case.id, None,
-                       EvidenceCreate(query="plugin-1", source_plugin="crt.sh@0.1.0"),
+                       EvidenceCreate(query="plugin-1", source_plugin="crtsh"),
                        b"b", None)
     manual_items, manual_total = await repo.list_for_case(case.id, source_plugin="manual")
     assert manual_total == 1
-    crt_items, crt_total = await repo.list_for_case(case.id, source_plugin="crt.sh@0.1.0")
+    crt_items, crt_total = await repo.list_for_case(case.id, source_plugin="crtsh")
     assert crt_total == 1
 
 

@@ -137,7 +137,7 @@ async def test_list_filter_by_source_plugin(signup_client_with_fake_storage):
     await _register_and_login(signup_client, "evf@example.com")
     case_id = await _create_case(signup_client)
 
-    for plugin in ("manual", "manual", "crt.sh@0.1.0"):
+    for plugin in ("manual", "manual", "crtsh"):
         r = await signup_client.post(
             f"/cases/{case_id}/evidence",
             files={"file": ("x.bin", io.BytesIO(b"x"), "application/octet-stream")},
@@ -152,7 +152,7 @@ async def test_list_filter_by_source_plugin(signup_client_with_fake_storage):
     assert r.json()["total"] == 2
     r = await signup_client.get(
         f"/cases/{case_id}/evidence",
-        params={"source_plugin": "crt.sh@0.1.0"},
+        params={"source_plugin": "crtsh"},
     )
     assert r.json()["total"] == 1
 
