@@ -50,6 +50,7 @@ async def test_engine():
         # before create_all runs. Order matters: auth → cases → entities →
         # relationships (FK chain).
         from sleuthgraph.auth import models as _auth_models  # noqa: F401
+        from sleuthgraph.auth.access_token import AccessToken as _access_token  # noqa: F401
         from sleuthgraph.cases import models as _cases_models  # noqa: F401
         from sleuthgraph.credentials import models as _cred_models  # noqa: F401
         from sleuthgraph.entities import models as _ent_models  # noqa: F401

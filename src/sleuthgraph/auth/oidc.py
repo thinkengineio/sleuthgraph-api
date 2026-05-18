@@ -17,7 +17,10 @@ from fastapi.responses import RedirectResponse
 from httpx_oauth.exceptions import GetIdEmailError, HTTPXOAuthError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sleuthgraph.auth.backend import cookie_transport, get_jwt_strategy
+from sleuthgraph.auth.access_token import AccessToken
+from sleuthgraph.auth.backend import cookie_transport
+from fastapi_users.authentication.strategy.db import DatabaseStrategy
+from fastapi_users_db_sqlalchemy.access_token import SQLAlchemyAccessTokenDatabase
 from sleuthgraph.auth.oidc_client import get_oidc_client, is_oidc_configured
 from sleuthgraph.auth.oidc_id_token import IdTokenError, validate_id_token
 from sleuthgraph.auth.oidc_provision import (
@@ -180,8 +183,9 @@ async def oidc_callback(
     except OidcAccountConflict as exc:
         raise HTTPException(status_code=409, detail="oidc_account_conflict") from exc
 
-    # Issue session cookie via existing JWT strategy + cookie transport.
-    strategy = get_jwt_strategy()
+    # Issue session cookie via database strategy + cookie transport.
+    access_token_db = SQLAlchemyAccessTokenDatabase(session, AccessToken)
+    strategy = DatabaseStrategy(access_token_db, lifetime_seconds=s.auth_session_lifetime_seconds)
     session_token = await strategy.write_token(user)
 
     response = RedirectResponse(url=state_payload.next_path, status_code=302)
