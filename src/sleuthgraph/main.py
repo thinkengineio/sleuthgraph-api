@@ -117,6 +117,8 @@ def create_app() -> FastAPI:
     app.include_router(credentials_router)
     app.include_router(cases_router)
     app.include_router(entities_router)
+    # evidence_export_router MUST be included BEFORE evidence_router so that
+    # /cases/{case_id}/evidence/export is not swallowed by /{ev_id}.
     app.include_router(evidence_export_router)
     app.include_router(relationships_router)
     app.include_router(graph_router)
