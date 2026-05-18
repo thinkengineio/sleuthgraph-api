@@ -9,7 +9,10 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sleuthgraph.entities.models import Entity
+from sleuthgraph.entities.types import EntityType
 from sleuthgraph.graph.age import _encode_props, run_cypher
+
+_VALID_ENTITY_TYPES = {t.value for t in EntityType}
 
 
 async def upsert_vertex(session: AsyncSession, entity: Entity) -> None:
@@ -18,6 +21,15 @@ async def upsert_vertex(session: AsyncSession, entity: Entity) -> None:
     Label = entity.type (PERSON, DOMAIN, etc.). ID property lets us find
     the vertex by primary key later.
     """
+    # Defense-in-depth: entity.type is validated upstream via the EntityType
+    # enum, but we re-check here at the point of Cypher construction to
+    # prevent label injection if upstream validation is ever bypassed.
+    if entity.type not in _VALID_ENTITY_TYPES:
+        raise ValueError(
+            f"entity.type {entity.type!r} is not a valid EntityType; "
+            f"refusing to construct Cypher label"
+        )
+
     props = {
         "id": str(entity.id),
         "case_id": str(entity.case_id),
@@ -27,9 +39,6 @@ async def upsert_vertex(session: AsyncSession, entity: Entity) -> None:
     }
     props_json = _encode_props(props)
 
-    # NOTE: entity.type is validated against the EntityType enum upstream,
-    # so it is NOT user-controlled free text. Still, avoid backticks and
-    # keep the label alphanumeric by construction.
     label = entity.type
     cypher = (
         f"MERGE (v:{label} {{id: '{entity.id}'}}) "
