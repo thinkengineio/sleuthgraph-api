@@ -3,9 +3,10 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from sleuthgraph.entities.types import EntityType
+from sleuthgraph.entities.validators import is_idn_domain
 from sleuthgraph.graph.validators import _validate_attrs
 
 
@@ -46,3 +47,11 @@ class EntityRead(BaseModel):
     created_by: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_idn(self) -> bool:
+        """True when the label contains IDN / Punycode indicators."""
+        if self.type == EntityType.DOMAIN:
+            return is_idn_domain(self.label)
+        return False
