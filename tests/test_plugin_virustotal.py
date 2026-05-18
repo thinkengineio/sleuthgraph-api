@@ -178,7 +178,8 @@ async def test_url_returns_evidence_only():
 # -- Error handling --
 
 @pytest.mark.asyncio
-async def test_http_error_retries_then_raises():
+async def test_http_error_not_retried():
+    """500 is not retried (retry predicate limited to transport/timeout errors)."""
     plugin = VirusTotalPlugin()
     call_count = {"n": 0}
 
@@ -193,12 +194,12 @@ async def test_http_error_retries_then_raises():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(ent, CREDS, ctx)
 
-    assert call_count["n"] == 3  # 3 attempts from tenacity
+    assert call_count["n"] == 1
 
 
 @pytest.mark.asyncio
-async def test_http_403_retries_then_raises():
-    """403 (bad API key) is retried per tenacity config (same as crtsh pattern)."""
+async def test_http_403_not_retried():
+    """403 (bad API key) is not retried (retry predicate limited to transport/timeout)."""
     plugin = VirusTotalPlugin()
     call_count = {"n": 0}
 
@@ -213,7 +214,7 @@ async def test_http_403_retries_then_raises():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(ent, CREDS, ctx)
 
-    assert call_count["n"] == 3
+    assert call_count["n"] == 1
 
 
 # -- Empty results --

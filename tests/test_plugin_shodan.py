@@ -154,7 +154,8 @@ async def test_evidence_url_does_not_contain_api_key():
 # -- Error handling --
 
 @pytest.mark.asyncio
-async def test_http_error_retries_then_raises():
+async def test_http_error_not_retried():
+    """500 is not retried (retry predicate limited to transport/timeout errors)."""
     plugin = ShodanPlugin()
     call_count = {"n": 0}
 
@@ -169,7 +170,7 @@ async def test_http_error_retries_then_raises():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(ent, CREDS, ctx)
 
-    assert call_count["n"] == 3  # 3 attempts
+    assert call_count["n"] == 1
 
 
 # -- Empty results --

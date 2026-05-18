@@ -103,7 +103,8 @@ async def test_truncation_marker_when_cap_hit():
 
 
 @pytest.mark.asyncio
-async def test_http_503_retries_then_returns_empty_gracefully():
+async def test_http_503_not_retried_returns_empty_gracefully():
+    """503 is not retried (retry predicate limited to transport/timeout errors)."""
     call = {"n": 0}
 
     def handler(request):
@@ -116,9 +117,9 @@ async def test_http_503_retries_then_returns_empty_gracefully():
         ctx = PluginContext(case_id="x", input_entity=_make_domain(), http_client=client)
         result = await plugin.query(_make_domain(), None, ctx)
 
-    # Plugin swallows exhausted retries to allow "zero result success"
+    # Plugin swallows the error to allow "zero result success"
     assert result.entities == []
-    assert call["n"] == 3
+    assert call["n"] == 1
     assert result.evidence[0].reproducibility_spec["fetch_status"] == "error"
 
 

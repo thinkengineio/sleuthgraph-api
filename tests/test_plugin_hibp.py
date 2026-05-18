@@ -148,8 +148,8 @@ async def test_no_breaches_returns_empty_result():
 
 
 @pytest.mark.asyncio
-async def test_rate_limited_429_retries():
-    """429 triggers tenacity retry; after 3 attempts the error is re-raised."""
+async def test_rate_limited_429_not_retried():
+    """429 is not retried (retry predicate limited to transport/timeout errors)."""
     plugin = HIBPPlugin()
     call_count = {"n": 0}
 
@@ -164,7 +164,7 @@ async def test_rate_limited_429_retries():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(ent, CREDS, ctx)
 
-    assert call_count["n"] == 3
+    assert call_count["n"] == 1
 
 
 # ---------------------------------------------------------------------------
@@ -173,8 +173,8 @@ async def test_rate_limited_429_retries():
 
 
 @pytest.mark.asyncio
-async def test_server_error_500_retries_three_times():
-    """500 retries 3x then re-raises."""
+async def test_server_error_500_not_retried():
+    """500 is not retried (retry predicate limited to transport/timeout errors)."""
     plugin = HIBPPlugin()
     call_count = {"n": 0}
 
@@ -189,7 +189,7 @@ async def test_server_error_500_retries_three_times():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(ent, CREDS, ctx)
 
-    assert call_count["n"] == 3
+    assert call_count["n"] == 1
 
 
 # ---------------------------------------------------------------------------

@@ -133,7 +133,8 @@ async def test_empty_response_produces_no_entities():
 
 
 @pytest.mark.asyncio
-async def test_http_500_retries_then_raises():
+async def test_http_500_not_retried():
+    """500 is not retried (retry predicate limited to transport/timeout errors)."""
     plugin = CrtShPlugin()
     call_count = {"n": 0}
 
@@ -147,7 +148,7 @@ async def test_http_500_retries_then_raises():
         with pytest.raises(httpx.HTTPStatusError):
             await plugin.query(_make_input_domain(), None, ctx)
 
-    assert call_count["n"] == 3
+    assert call_count["n"] == 1
 
 
 @pytest.mark.asyncio
