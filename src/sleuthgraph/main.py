@@ -19,9 +19,12 @@ from sleuthgraph.auth.forgot_password import (
 from sleuthgraph.auth.forgot_password import (
     router as forgot_password_router,
 )
+from sleuthgraph.auth.login import router as login_router
 from sleuthgraph.auth.oidc import router as oidc_router
 from sleuthgraph.auth.ping import router as auth_ping_router
 from sleuthgraph.auth.rate_limit import ip_limiter
+from sleuthgraph.auth.register import router as register_router
+from sleuthgraph.auth.reset_password import router as reset_password_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.config import get_settings
@@ -104,24 +107,31 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
 
-    # Auth routers: login / logout always, register only when enabled
+    # Auth routers: our rate-limited overrides MUST mount BEFORE the
+    # fastapi-users routers so FastAPI's path matcher picks ours first.
+    # /logout still comes from fastapi-users below; we only shadow /login.
+    app.include_router(login_router, prefix="/auth", tags=["auth"])
     app.include_router(
         fastapi_users.get_auth_router(auth_backend),
         prefix="/auth",
         tags=["auth"],
     )
     if settings.auth_allow_signup:
+        # Rate-limited register mounts first; the unguarded fastapi-users
+        # register router below is dead code at runtime but stays in the
+        # OpenAPI spec.
+        app.include_router(register_router, prefix="/auth", tags=["auth"])
         app.include_router(
             fastapi_users.get_register_router(UserRead, UserCreate),
             prefix="/auth",
             tags=["auth"],
         )
     if settings.auth_allow_password_reset:
-        # Our rate-limited /auth/forgot-password must mount BEFORE the
-        # fastapi-users reset router so FastAPI's path matcher picks it
-        # first; the underlying /auth/reset-password handler still comes
-        # from fastapi-users below.
+        # Our rate-limited /auth/forgot-password + /auth/reset-password
+        # mount BEFORE the fastapi-users reset router so our handlers
+        # win the path match.
         app.include_router(forgot_password_router, prefix="/auth", tags=["auth"])
+        app.include_router(reset_password_router, prefix="/auth", tags=["auth"])
         app.include_router(
             fastapi_users.get_reset_password_router(),
             prefix="/auth",

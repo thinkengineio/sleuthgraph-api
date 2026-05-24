@@ -29,6 +29,7 @@ from sleuthgraph.auth.oidc_provision import (
     resolve_oidc_user,
 )
 from sleuthgraph.auth.oidc_state import StateError, decode_state, encode_state
+from sleuthgraph.auth.rate_limit import ip_limiter
 from sleuthgraph.config import get_settings
 from sleuthgraph.db import get_session
 
@@ -99,6 +100,7 @@ async def oidc_login(
 
 
 @router.get("/oidc/callback", name="oidc_callback")
+@ip_limiter.limit(lambda: get_settings().auth_oidc_callback_ip_rate)
 async def oidc_callback(
     request: Request,
     code: str = Query(...),

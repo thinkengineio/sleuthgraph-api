@@ -107,11 +107,35 @@ class Settings(BaseSettings):
     # Per-target-email cap; rejects when exceeded with 429 without leaking
     # whether the email exists (same 429 body regardless).
     auth_forgot_password_email_rate: str = "3/hour"
+    # /auth/login limits. Two axes because credential stuffing rotates IPs
+    # (use the username axis to bound attempts against one account) AND
+    # password spraying rotates usernames (use the IP axis to bound
+    # attempts from one source).
+    auth_login_ip_rate: str = "10/minute"
+    auth_login_username_rate: str = "5/minute"
+    # /auth/register. Only fires when auth_allow_signup=True (the
+    # rate-limited router is only mounted in that case).
+    auth_register_ip_rate: str = "5/minute"
+    # /auth/oidc/callback. Generous because a legit redirect chain is
+    # ~1 request per login; the limit just caps replay-attempt blast
+    # radius if a code leaks.
+    auth_oidc_callback_ip_rate: str = "30/minute"
+    # /auth/reset-password. The token axis is the real defense against
+    # bulk token-guessing; the IP axis bounds DoS.
+    auth_reset_password_ip_rate: str = "5/minute"
+    auth_reset_password_token_rate: str = "5/hour"
     # Backend used by the rate limiter. Default unset -> reuse REDIS_URL
     # so multi-worker deployments share counters. Set to ``memory://`` to
     # force a per-process in-memory store (only safe with a single
     # worker; useful for tests).
     auth_rate_limit_storage: str | None = None
+    # When True, the rate limiter trusts the ``CF-Connecting-IP`` header
+    # (and X-Forwarded-For as a fallback) as the real client IP. Default
+    # True because our hosted deployment sits behind Cloudflare Tunnel,
+    # which strips/sets these headers at the edge. OSS self-hosters who
+    # expose the API directly MUST set this to False; otherwise an
+    # attacker can spoof their per-IP bucket by setting the header.
+    trust_cloudflare_edge: bool = True
 
     # Docs exposure
     # When false the FastAPI app omits /docs, /redoc, and /openapi.json.
