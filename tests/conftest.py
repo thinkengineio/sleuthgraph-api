@@ -19,6 +19,9 @@ async def _hibp_always_false(_password: str) -> bool:
 def _set_env(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    # Force in-memory rate-limit storage in tests so we don't talk to a
+    # live redis (this knob is read by sleuthgraph.auth.rate_limit).
+    monkeypatch.setenv("AUTH_RATE_LIMIT_STORAGE", "memory://")
     monkeypatch.setenv("S3_ENDPOINT", "http://minio:9000")
     monkeypatch.setenv("S3_ACCESS_KEY", "x")
     monkeypatch.setenv("S3_SECRET_KEY", "x")
@@ -31,7 +34,14 @@ def _set_env(monkeypatch):
 
     # Prevent every test from hitting the real HIBP API.
     monkeypatch.setattr("sleuthgraph.auth.manager._is_password_pwned", _hibp_always_false)
+
+    # Wipe rate-limit counters between tests so a 6th-request-429 test
+    # doesn't poison subsequent runs (and vice versa).
+    from sleuthgraph.auth.rate_limit import reset_limiters
+
+    reset_limiters()
     yield
+    reset_limiters()
     get_settings.cache_clear()
 
 

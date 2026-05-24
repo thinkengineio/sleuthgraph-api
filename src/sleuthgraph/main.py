@@ -8,12 +8,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from sleuthgraph import __version__
 from sleuthgraph.auth.backend import auth_backend
 from sleuthgraph.auth.deps import fastapi_users
+from sleuthgraph.auth.forgot_password import (
+    rate_limit_exceeded_handler,
+)
+from sleuthgraph.auth.forgot_password import (
+    router as forgot_password_router,
+)
 from sleuthgraph.auth.oidc import router as oidc_router
 from sleuthgraph.auth.ping import router as auth_ping_router
+from sleuthgraph.auth.rate_limit import ip_limiter
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
 from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.config import get_settings
@@ -69,11 +77,22 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    docs_kwargs: dict = (
+        {}
+        if settings.expose_api_docs
+        else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    )
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
         lifespan=lifespan,
+        **docs_kwargs,
     )
+
+    # Wire slowapi: the limiter instance + a handler that returns a
+    # generic 429 body (no email-existence hint).
+    app.state.limiter = ip_limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
     app.add_middleware(
         CORSMiddleware,
@@ -98,6 +117,11 @@ def create_app() -> FastAPI:
             tags=["auth"],
         )
     if settings.auth_allow_password_reset:
+        # Our rate-limited /auth/forgot-password must mount BEFORE the
+        # fastapi-users reset router so FastAPI's path matcher picks it
+        # first; the underlying /auth/reset-password handler still comes
+        # from fastapi-users below.
+        app.include_router(forgot_password_router, prefix="/auth", tags=["auth"])
         app.include_router(
             fastapi_users.get_reset_password_router(),
             prefix="/auth",

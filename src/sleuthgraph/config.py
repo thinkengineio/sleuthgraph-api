@@ -101,6 +101,24 @@ class Settings(BaseSettings):
         description="Redis URL for the arq task queue. Defaults to redis_url if unset.",
     )
 
+    # Rate limiting (forgot-password)
+    # Per-source-IP cap; rejects when exceeded with 429.
+    auth_forgot_password_ip_rate: str = "5/minute"
+    # Per-target-email cap; rejects when exceeded with 429 without leaking
+    # whether the email exists (same 429 body regardless).
+    auth_forgot_password_email_rate: str = "3/hour"
+    # Backend used by the rate limiter. Default unset -> reuse REDIS_URL
+    # so multi-worker deployments share counters. Set to ``memory://`` to
+    # force a per-process in-memory store (only safe with a single
+    # worker; useful for tests).
+    auth_rate_limit_storage: str | None = None
+
+    # Docs exposure
+    # When false the FastAPI app omits /docs, /redoc, and /openapi.json.
+    # Default true to preserve OSS / dev experience; set false in production
+    # to avoid leaking the API surface to unauthenticated visitors.
+    expose_api_docs: bool = True
+
     # App
     app_name: str = "Sleuthgraph API"
     debug: bool = False

@@ -14,7 +14,9 @@ If you discover a security vulnerability in Sleuthgraph, please report it
 responsibly using one of these channels:
 
 - **Email:** security@sleuthgraph.io
-- **GitHub:** Use [GitHub's private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability) on this repository.
+- **GitHub:** Open a private advisory at
+  https://github.com/thinkengineio/sleuthgraph-api/security/advisories/new
+  (Private Vulnerability Reporting is enabled on this repo).
 
 ### What to expect
 
