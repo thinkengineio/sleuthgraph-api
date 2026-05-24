@@ -26,7 +26,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi_users import exceptions
 from pydantic import EmailStr
-from slowapi.errors import RateLimitExceeded
 
 from sleuthgraph.auth.deps import get_user_manager
 from sleuthgraph.auth.manager import UserManager
