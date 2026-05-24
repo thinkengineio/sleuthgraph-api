@@ -113,6 +113,12 @@ class Settings(BaseSettings):
     # worker; useful for tests).
     auth_rate_limit_storage: str | None = None
 
+    # Docs exposure
+    # When false the FastAPI app omits /docs, /redoc, and /openapi.json.
+    # Default true to preserve OSS / dev experience; set false in production
+    # to avoid leaking the API surface to unauthenticated visitors.
+    expose_api_docs: bool = True
+
     # App
     app_name: str = "Sleuthgraph API"
     debug: bool = False

@@ -77,10 +77,16 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    docs_kwargs: dict = (
+        {}
+        if settings.expose_api_docs
+        else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    )
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
         lifespan=lifespan,
+        **docs_kwargs,
     )
 
     # Wire slowapi: the limiter instance + a handler that returns a
