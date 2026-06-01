@@ -124,6 +124,13 @@ class Settings(BaseSettings):
     # bulk token-guessing; the IP axis bounds DoS.
     auth_reset_password_ip_rate: str = "5/minute"
     auth_reset_password_token_rate: str = "5/hour"
+    # /auth/request-verify-token. Only fires when
+    # auth_allow_email_verify=True (the rate-limited router is only
+    # mounted in that case). Mirrors forgot-password's two-axis shape
+    # because the threat model is the same -- spam an inbox with verify
+    # links, enumerate addresses via timing, DoS the SMTP backend.
+    auth_verify_ip_rate: str = "5/minute"
+    auth_verify_email_rate: str = "3/hour"
     # Backend used by the rate limiter. Default unset -> reuse REDIS_URL
     # so multi-worker deployments share counters. Set to ``memory://`` to
     # force a per-process in-memory store (only safe with a single

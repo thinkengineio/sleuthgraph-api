@@ -19,6 +19,7 @@ runs; otherwise the module-level singleton would leak state.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 from contextlib import suppress
 
 from fastapi import Request
@@ -28,6 +29,28 @@ from limits.strategies import MovingWindowRateLimiter
 from slowapi import Limiter
 
 from sleuthgraph.config import get_settings
+
+
+def _valid_ip(value: str | None) -> str | None:
+    """Return ``value`` stripped if it parses as a real IPv4/IPv6 address.
+
+    Anything else (None, empty, garbage, log-injection payload) returns
+    None so the caller falls through to the next candidate source. This
+    is defense in depth: ``CF-Connecting-IP`` and ``X-Forwarded-For``
+    arrive as raw header bytes, end up as rate-limit bucket keys + log
+    lines, and a malformed value can both split a bucket into useless
+    fragments and poison logs.
+    """
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return None
+    return candidate
 
 
 def get_client_ip(request: Request) -> str:
@@ -50,23 +73,30 @@ def get_client_ip(request: Request) -> str:
       API directly can set them to anything and would bypass per-IP
       buckets.
 
+    Header-derived candidates are validated via ``ipaddress.ip_address``
+    before being used as bucket keys. A malformed value falls through to
+    the next source rather than becoming a bogus key.
+
     Falls back to the literal string ``"unknown"`` if no source can be
     resolved -- this is a single shared bucket, which is conservative
     (rate-limits-everyone) rather than permissive.
     """
     settings = get_settings()
     if settings.trust_cloudflare_edge:
-        cf_ip = request.headers.get("cf-connecting-ip")
+        cf_ip = _valid_ip(request.headers.get("cf-connecting-ip"))
         if cf_ip:
-            return cf_ip.strip()
+            return cf_ip
         xff = request.headers.get("x-forwarded-for")
         if xff:
-            # Use the rightmost entry: that's the IP the immediately-
-            # upstream proxy observed for this connection. The leftmost
-            # entry is unauthenticated client-supplied data.
-            parts = [p.strip() for p in xff.split(",") if p.strip()]
-            if parts:
-                return parts[-1]
+            # Walk from the rightmost entry leftward: the rightmost is
+            # what the immediately-upstream proxy observed for this
+            # connection. The leftmost is unauthenticated client-supplied
+            # data. Take the first parseable IP -- malformed entries
+            # don't get to poison the bucket key.
+            for raw in reversed(xff.split(",")):
+                candidate = _valid_ip(raw)
+                if candidate:
+                    return candidate
     if request.client is not None:
         return request.client.host
     return "unknown"
@@ -140,6 +170,17 @@ def username_rate_limit_hit(username: str) -> bool:
     """
     limit = parse(get_settings().auth_login_username_rate)
     return _body_strategy.hit(limit, "login:" + username.lower())
+
+
+def verify_email_rate_limit_hit(email: str) -> bool:
+    """Record a verify-token request against ``email`` and report whether allowed.
+
+    Mirrors :func:`email_rate_limit_hit` (forgot-password) but writes to a
+    separate bucket so the two flows can't starve each other. Keyed on
+    the lowercased email so casing variants share one bucket.
+    """
+    limit = parse(get_settings().auth_verify_email_rate)
+    return _body_strategy.hit(limit, "verify:" + email.lower())
 
 
 def reset_token_rate_limit_hit(token: str) -> bool:

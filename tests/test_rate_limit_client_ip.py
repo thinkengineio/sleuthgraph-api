@@ -135,6 +135,70 @@ def test_get_client_ip_xff_handles_extra_spaces(monkeypatch):
     assert get_client_ip(req) == "5.6.7.8"
 
 
+def test_get_client_ip_rejects_garbage_cf_header_and_falls_back(monkeypatch):
+    """Issue #85: a malformed CF-Connecting-IP must NOT become a bucket key.
+
+    The validator falls through to XFF, then to ``request.client.host``.
+    Otherwise an attacker could split their own bucket -- or worse, log-
+    inject arbitrary strings -- by emitting non-IP header values.
+    """
+    get_client_ip, get_settings = _get_client_ip_and_settings()
+    monkeypatch.setenv("TRUST_CLOUDFLARE_EDGE", "true")
+    get_settings.cache_clear()
+    req = _request(
+        headers={"cf-connecting-ip": "not-an-ip; rm -rf /"},
+        client_host="10.0.0.1",
+    )
+    assert get_client_ip(req) == "10.0.0.1"
+
+
+def test_get_client_ip_skips_garbage_xff_entry_and_keeps_walking(monkeypatch):
+    """Walk the XFF list right-to-left, skip invalid entries.
+
+    Real CF deployments only get the CF-Connecting-IP path; this case
+    matters for non-CF proxies (nginx, oci LB) where XFF is the only
+    source. An attacker who controls the leftmost entry shouldn't be
+    able to poison the bucket key with garbage that lands on the
+    rightmost slot.
+    """
+    get_client_ip, get_settings = _get_client_ip_and_settings()
+    monkeypatch.setenv("TRUST_CLOUDFLARE_EDGE", "true")
+    get_settings.cache_clear()
+    # Rightmost is garbage -- skip; next is a valid IP -- use it.
+    req = _request(headers={"x-forwarded-for": "1.2.3.4, 5.6.7.8, not-an-ip"})
+    assert get_client_ip(req) == "5.6.7.8"
+
+
+def test_get_client_ip_rejects_empty_cf_header(monkeypatch):
+    """A blank CF-Connecting-IP shouldn't bucket everyone together."""
+    get_client_ip, get_settings = _get_client_ip_and_settings()
+    monkeypatch.setenv("TRUST_CLOUDFLARE_EDGE", "true")
+    get_settings.cache_clear()
+    req = _request(headers={"cf-connecting-ip": "   "}, client_host="10.0.0.1")
+    assert get_client_ip(req) == "10.0.0.1"
+
+
+def test_get_client_ip_accepts_ipv6(monkeypatch):
+    """IPv6 must validate (parses via ``ipaddress.ip_address`` already)."""
+    get_client_ip, get_settings = _get_client_ip_and_settings()
+    monkeypatch.setenv("TRUST_CLOUDFLARE_EDGE", "true")
+    get_settings.cache_clear()
+    req = _request(headers={"cf-connecting-ip": "2001:db8::1"})
+    assert get_client_ip(req) == "2001:db8::1"
+
+
+def test_get_client_ip_falls_through_when_all_xff_entries_invalid(monkeypatch):
+    """All-garbage XFF means we fall back to ``request.client.host``."""
+    get_client_ip, get_settings = _get_client_ip_and_settings()
+    monkeypatch.setenv("TRUST_CLOUDFLARE_EDGE", "true")
+    get_settings.cache_clear()
+    req = _request(
+        headers={"x-forwarded-for": "garbage, more-garbage, even-worse"},
+        client_host="10.0.0.1",
+    )
+    assert get_client_ip(req) == "10.0.0.1"
+
+
 @pytest.mark.asyncio
 async def test_forgot_password_limiter_keys_off_cf_header(client, monkeypatch):
     """End-to-end: with the CF header per request, each "IP" gets its own bucket.

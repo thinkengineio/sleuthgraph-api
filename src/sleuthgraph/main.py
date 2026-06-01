@@ -26,6 +26,7 @@ from sleuthgraph.auth.rate_limit import ip_limiter
 from sleuthgraph.auth.register import router as register_router
 from sleuthgraph.auth.reset_password import router as reset_password_router
 from sleuthgraph.auth.schemas import UserCreate, UserRead, UserUpdate
+from sleuthgraph.auth.verify import router as verify_router
 from sleuthgraph.cases.router import router as cases_router
 from sleuthgraph.config import get_settings
 from sleuthgraph.credentials.router import router as credentials_router
@@ -138,6 +139,11 @@ def create_app() -> FastAPI:
             tags=["auth"],
         )
     if settings.auth_allow_email_verify:
+        # Our rate-limited /auth/request-verify-token mounts BEFORE the
+        # fastapi-users verify router so our handler wins the path match.
+        # /auth/verify still comes from fastapi-users (token-gated, not a
+        # useful email-spam surface).
+        app.include_router(verify_router, prefix="/auth", tags=["auth"])
         app.include_router(
             fastapi_users.get_verify_router(UserRead),
             prefix="/auth",
