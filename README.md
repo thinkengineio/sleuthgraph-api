@@ -216,6 +216,52 @@ plugins: `crt_sh`, `dns_whois`, `github_public`, `opencorporates`, `opensanction
 
 ---
 
+## Rate limiting and `TRUST_CLOUDFLARE_EDGE` (read this if you self-host)
+
+The auth surface (`/auth/login`, `/auth/register`, `/auth/forgot-password`,
+`/auth/reset-password`, `/auth/request-verify-token`, `/auth/oidc/callback`)
+is guarded by a per-source-IP rate limiter. The "source IP" the limiter uses
+depends on `TRUST_CLOUDFLARE_EDGE`.
+
+| Deployment | Set `TRUST_CLOUDFLARE_EDGE` to | Source the limiter uses |
+|---|---|---|
+| Hosted sleuthgraph.io (Cloudflare Tunnel only, no public IP) | `true` (default) | `CF-Connecting-IP`, then rightmost `X-Forwarded-For`, then TCP peer |
+| Self-hosted behind Cloudflare (proxied DNS + WAF + no direct public IP) | `true` | same as above |
+| Self-hosted behind a non-CF reverse proxy (nginx, Traefik, OCI LB, etc.) that strips and rewrites `X-Forwarded-For` | `true` | rightmost `X-Forwarded-For`, then TCP peer |
+| Self-hosted with the API exposed directly to the internet (no proxy in front, or a proxy that does **not** strip client-supplied `CF-Connecting-IP`/`X-Forwarded-For`) | **`false`** | TCP peer only |
+
+**Warning for OSS self-hosters:** the default is `true` because the hosted
+sleuthgraph.io deployment lives behind a Cloudflare Tunnel that strips any
+client-supplied `CF-Connecting-IP` and rewrites it from the observed TCP
+source. If your deployment does **not** sit behind a proxy that does this,
+an attacker can spoof the `CF-Connecting-IP` header on every request and
+bypass the per-IP rate limit (each spoofed value gets its own bucket).
+Other IP-keyed defenses we add later would have the same hole.
+
+If you run the API anywhere the headers could be attacker-controlled:
+
+```bash
+# In .env
+TRUST_CLOUDFLARE_EDGE=false
+```
+
+The `X-Forwarded-For` parser uses the **rightmost** entry, not the leftmost.
+The leftmost is whatever the original client put there and is unauthenticated;
+the rightmost is what the immediately-upstream proxy observed. For multi-hop
+chains (e.g. `nginx -> CF -> tunnel -> API`) make sure every proxy in the
+chain appends to `X-Forwarded-For` and your outermost trust boundary is the
+only place client-supplied values could leak in.
+
+Header-derived candidates are validated with `ipaddress.ip_address()` before
+they get used as a bucket key, so malformed strings fall through to the next
+candidate source instead of becoming bogus keys or log-injection payloads.
+
+Whether the safer OSS default for `TRUST_CLOUDFLARE_EDGE` should itself be
+`false` (with hosted deployments opting in) is an open question; open an
+issue if you have a preference.
+
+---
+
 ## Tests
 
 ```bash
