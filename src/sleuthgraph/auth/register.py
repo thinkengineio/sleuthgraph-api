@@ -12,7 +12,7 @@ the endpoint just isn't there.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi_users import exceptions, schemas
+from fastapi_users import exceptions
 from fastapi_users.router.common import ErrorCode
 
 from sleuthgraph.auth.deps import get_user_manager
@@ -53,4 +53,4 @@ async def register(
             },
         ) from exc
 
-    return schemas.model_validate(UserRead, created_user)
+    return UserRead.model_validate(created_user)
